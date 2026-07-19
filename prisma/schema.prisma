@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  phone     String   @unique
+  full_name String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  bookings  Booking[]
+
+  @@map("clients")
+}
+
+model Artist {
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String   @unique
+  phone       String
+  password_hash String
+  start_time  String   // HH:mm
+  end_time    String   // HH:mm
+  is_active   Boolean  @default(true)
+  role        String   @default("artist") // admin | artist
+  created_at  DateTime @default(now())
+  bookings    Booking[]
+  photos      BeforeAfterPhoto[]
+
+  @@map("artists")
+}
+
+model BusinessRule {
+  id                    Int      @id @default(1)
+  deposit_percentage   Int      @default(50)
+  cancel_threshold_hours Int    @default(24)
+  penalty_percentage    Int      @default(100)
+  buffer_minutes       Int      @default(30)
+  updated_at           DateTime @updatedAt
+
+  @@map("business_rules")
+}
+
+model Booking {
+  id              Int      @id @default(autoincrement())
+  client_id       Int
+  artist_id       Int
+  scheduled_at    DateTime
+  service_package String
+  location_type   String   @default("studio")
+  address         String?  @db.Text
+  status          String   @default("pending_deposit")
+  deposit_paid   Decimal? @db.Decimal(12, 2)
+  penalty_applied Decimal? @db.Decimal(12, 2)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  client          Client   @relation(fields: [client_id], references: [id])
+  artist          Artist   @relation(fields: [artist_id], references: [id])
+  photos          BeforeAfterPhoto[]
+
+  @@index([artist_id, scheduled_at])
+  @@index([status])
+  @@map("bookings")
+}
+
+model BeforeAfterPhoto {
+  id                    Int      @id @default(autoincrement())
+  booking_id            Int
+  file_path             String
+  caption               String?
+  uploaded_at           DateTime @default(now())
+  uploaded_by_artist_id Int
+  booking               Booking  @relation(fields: [booking_id], references: [id])
+  uploaded_by           Artist   @relation(fields: [uploaded_by_artist_id], references: [id])
+
+  @@map("before_after_photos")
+}
+
+model ServicePackage {
+  id               String   @id
+  name             String
+  duration_minutes Int
+  price            Int
+  description      String   @db.Text
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@map("service_packages")
+}
