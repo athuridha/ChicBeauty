@@ -335,7 +335,7 @@ export default function HomePage() {
                     ChicBeauty
                   </span>
                   <span className="text-[10px] tracking-salon text-salon-taupe font-light uppercase mt-1">
-                    studio & home service
+                    HOME SERVICE
                   </span>
                 </Link>
               </div>
