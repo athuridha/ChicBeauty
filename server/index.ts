@@ -1,8 +1,7 @@
 import cookieParser from 'cookie-parser'
 import cookieSession from 'cookie-session'
 import express from 'express'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+
 import bookingRoutes from './routes/booking'
 import artistRoutes from './routes/artist'
 import adminRoutes from './routes/admin'
@@ -12,7 +11,6 @@ import photoRoutes from './routes/photo'
 import serviceRoutes from './routes/service'
 import multer from 'multer'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 
 
@@ -41,8 +39,8 @@ app.use((req, _res, next) => {
   next()
 })
 
-// Static uploads (foto before/after + bukti deposit)
-app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')))
+// Static uploads (foto before/after + bukti deposit) — local dev only, Vercel has read-only fs
+app.use('/uploads', express.static(process.cwd() + '/uploads'))
 
 app.use('/api/booking', bookingRoutes)
 app.use('/api/artists', artistRoutes)
@@ -75,11 +73,5 @@ app.use((err: any, _req: any, res: any, _next: any) => {
   res.status(500).json({ error: 'Terjadi kesalahan internal server.' })
 })
 
-// Serve built frontend in production
-if (process.env.NODE_ENV === 'production') {
-  const dist = path.resolve(__dirname, '../dist')
-  app.use(express.static(dist))
-  app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')))
-}
-
 export default app
+

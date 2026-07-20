@@ -2,6 +2,9 @@ import app from './index'
 import { ensureUploadDir } from './lib/upload'
 import { PrismaClient } from '@prisma/client'
 import { sendEmail } from './lib/email'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import express from 'express'
 
 const PORT = Number(process.env.PORT ?? 3000)
 
@@ -38,6 +41,15 @@ async function autoCancelExpiredDeposits() {
 
 async function main() {
   await ensureUploadDir()
+
+  // Serve built frontend in production (non-Vercel self-hosted)
+  if (process.env.NODE_ENV === 'production') {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url))
+    const dist = path.resolve(__dirname, '../dist')
+    app.use(express.static(dist))
+    app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')))
+  }
+
   app.listen(PORT, () => {
     console.log(`[server] listening on http://localhost:${PORT}`)
   })
