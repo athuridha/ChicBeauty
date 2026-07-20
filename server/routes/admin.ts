@@ -181,7 +181,7 @@ router.post('/artists', requireAdmin, async (req, res) => {
   }
   const { name, email, phone, password, start_time, end_time, is_active } =
     parsed.data
-  const bcrypt = await import('bcrypt')
+  const bcrypt = await import('bcryptjs')
   const password_hash = await bcrypt.hash(password ?? 'artist123', 10)
   const artist = await prisma.artist.create({
     data: {
@@ -218,7 +218,7 @@ router.patch('/artists/:id', requireAdmin, async (req, res) => {
   }
   const data: any = { ...parsed.data }
   if (parsed.data.password) {
-    const bcrypt = await import('bcrypt')
+    const bcrypt = await import('bcryptjs')
     data.password_hash = await bcrypt.hash(parsed.data.password, 10)
     delete data.password
   }
