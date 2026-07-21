@@ -47693,13 +47693,17 @@ router.get("/slots", async (req, res) => {
   const durationMin = pkg.duration_minutes;
   const startTimeStr = location_type === "home_service" ? artist.home_service_start_time || artist.start_time : artist.start_time;
   const endTimeStr = location_type === "home_service" ? artist.home_service_end_time || artist.end_time : artist.end_time;
-  const [sh, sm] = startTimeStr.split(":").map(Number);
-  const [eh, em] = endTimeStr.split(":").map(Number);
-  const dayStart = /* @__PURE__ */ new Date(`${date}T00:00:00`);
-  const workStart = new Date(dayStart);
-  workStart.setHours(sh, sm, 0, 0);
-  const workEnd = new Date(dayStart);
-  workEnd.setHours(eh, em, 0, 0);
+  const [shStr, smStr] = startTimeStr.split(":");
+  const [ehStr, emStr] = endTimeStr.split(":");
+  const sh = (shStr || "00").padStart(2, "0");
+  const sm = (smStr || "00").padStart(2, "0");
+  const eh = (ehStr || "00").padStart(2, "0");
+  const em = (emStr || "00").padStart(2, "0");
+  const workStart = /* @__PURE__ */ new Date(`${date}T${sh}:${sm}:00+07:00`);
+  let workEnd = /* @__PURE__ */ new Date(`${date}T${eh}:${em}:00+07:00`);
+  if (workEnd.getTime() <= workStart.getTime()) {
+    workEnd = new Date(workEnd.getTime() + 24 * 60 * 60 * 1e3);
+  }
   const existing = await prisma.booking.findMany({
     where: {
       artist_id,
