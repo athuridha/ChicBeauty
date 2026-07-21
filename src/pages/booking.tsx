@@ -73,6 +73,21 @@ export default function BookingPage() {
       .finally(() => setLoadingSlots(false))
   }, [artistId, date, packageId, locationType])
 
+  // Auto reset artistId if selected artist does not support locationType
+  useEffect(() => {
+    if (artistId && artists.length > 0) {
+      const artist = artists.find((a) => a.id === artistId)
+      if (artist) {
+        if (locationType === 'studio' && artist.allows_studio === false) {
+          setArtistId(null)
+          toast.info(`Artist ${artist.name} tidak melayani reservasi di studio.`)
+        } else if (locationType === 'home_service' && artist.allows_home_service === false) {
+          setArtistId(null)
+          toast.info(`Artist ${artist.name} tidak melayani reservasi home service.`)
+        }
+      }
+    }
+  }, [locationType, artistId, artists])
   const today = new Date().toISOString().slice(0, 10)
   const pkg = packages.find((p) => p.id === packageId) ?? { id: '', name: 'Loading...', duration_minutes: 0, price: 0 }
 
@@ -304,9 +319,47 @@ export default function BookingPage() {
               <p className="text-salon-taupe text-xs mb-8">Tentukan artist, paket, dan waktu treatment Anda.</p>
               
               <div className="space-y-6">
+                {/* Location selector toggle in Step 2 */}
+                <div className="space-y-2 pb-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">LOKASI TREATMENT</label>
+                    <span className="text-[10px] font-medium text-salon-taupe">
+                      {locationType === 'home_service' ? 'Home Service (Kunjungan Rumah)' : 'Di Studio'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      disabled={rules?.allow_home_service === false}
+                      onClick={() => setLocationType('home_service')}
+                      className={`flex items-center justify-center gap-2 border py-2.5 transition-all duration-300 ${
+                        locationType === 'home_service'
+                          ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream'
+                          : 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
+                      } ${rules?.allow_home_service === false ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    >
+                      <MapPin className="h-3.5 w-3.5" />
+                      <span className="text-[10px] tracking-salon font-semibold uppercase">HOME SERVICE</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={rules?.allow_studio === false}
+                      onClick={() => setLocationType('studio')}
+                      className={`flex items-center justify-center gap-2 border py-2.5 transition-all duration-300 ${
+                        locationType === 'studio'
+                          ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream'
+                          : 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
+                      } ${rules?.allow_studio === false ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    >
+                      <MapPin className="h-3.5 w-3.5" />
+                      <span className="text-[10px] tracking-salon font-semibold uppercase">DI STUDIO</span>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal">ARTIST</label>
+                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">ARTIST</label>
                     <div className="relative">
                       <select
                         className="w-full border-0 border-b border-salon-sand bg-transparent px-0 py-2 text-salon-charcoal focus:ring-0 focus:border-salon-charcoal transition-colors appearance-none text-sm"
@@ -328,7 +381,7 @@ export default function BookingPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal">PAKET</label>
+                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">PAKET</label>
                     <div className="relative">
                       <select
                         className="w-full border-0 border-b border-salon-sand bg-transparent px-0 py-2 text-salon-charcoal focus:ring-0 focus:border-salon-charcoal transition-colors appearance-none text-sm"
@@ -346,7 +399,7 @@ export default function BookingPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal">TANGGAL</label>
+                  <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">TANGGAL</label>
                   <input
                     type="date"
                     min={today}
@@ -358,7 +411,7 @@ export default function BookingPage() {
 
                 {/* Slot grid */}
                 <div className="pt-2">
-                  <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal block mb-3">WAKTU TERSEDIA</label>
+                  <label className="text-[10px] font-bold tracking-salon text-salon-charcoal uppercase block mb-4">WAKTU TERSEDIA</label>
                   {!artistId || !date ? (
                     <div className="py-8 text-center border border-dashed border-salon-sand text-salon-taupe text-xs">
                       Pilih artist & tanggal untuk melihat slot.
@@ -369,26 +422,26 @@ export default function BookingPage() {
                     </div>
                   ) : slots.length === 0 ? (
                     <div className="py-8 text-center border border-dashed border-salon-sand text-salon-taupe text-xs">
-                      Tidak ada slot tersedia untuk tanggal ini.
+                      Tidak ada slot tersedia untuk tanggal dan lokasi ini.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {slots.map((s) => {
                         const time = new Date(s.start).toLocaleTimeString('id-ID', {
                           hour: '2-digit', minute: '2-digit', hour12: false
-                        })
+                        }).replace(':', '.')
                         const selected = selectedSlot?.start === s.start
                         return (
                           <button
                             key={s.start}
                             disabled={!s.available}
                             onClick={() => setSelectedSlot(s)}
-                            className={`py-2.5 text-xs transition-all duration-300 border ${
+                            className={`py-3 px-4 text-sm font-medium transition-all duration-300 border text-center ${
                               selected
-                                ? 'bg-salon-charcoal border-salon-charcoal text-salon-cream'
+                                ? 'bg-salon-charcoal border-salon-charcoal text-salon-cream shadow-md scale-[1.02]'
                                 : s.available
-                                  ? 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
-                                  : 'border-salon-sand/30 text-salon-sand/50 cursor-not-allowed line-through'
+                                  ? 'border-salon-sand/80 bg-white text-salon-charcoal hover:border-salon-charcoal hover:shadow-sm'
+                                  : 'border-salon-sand/30 bg-gray-50/50 text-salon-sand/40 cursor-not-allowed line-through'
                             }`}
                           >
                             {time}
