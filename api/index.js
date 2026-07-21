@@ -47480,6 +47480,10 @@ router.post("/create", async (req, res) => {
       service_package,
       location_type,
       address
+    },
+    include: {
+      artist: true,
+      client: true
     }
   });
   await sendEmail(

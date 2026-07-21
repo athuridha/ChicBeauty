@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Calendar, Clock, Upload, AlertCircle, Check, X, MapPin } from 'lucide-react'
+import { Calendar, Clock, Upload, AlertCircle, Check, X, MapPin, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import type { Booking, BookingStatus } from '@/shared/types'
+import { buildArtistBookingWaLink } from '@/lib/wa'
 
 const STATUS_LABELS: Record<BookingStatus, string> = {
   pending_deposit: 'Pending Deposit',
@@ -259,6 +260,28 @@ export default function BookingDetailPage() {
               <AlertCircle className="h-4 w-4" />
               Booking ini sudah dibatalkan.
             </div>
+          )}
+
+          {booking.artist?.phone && (
+            <a
+              href={buildArtistBookingWaLink({
+                bookingId: booking.id,
+                artistName: booking.artist.name,
+                artistPhone: booking.artist.phone,
+                clientName: booking.client?.full_name || 'Pelanggan',
+                clientPhone: booking.client?.phone || '',
+                packageName: booking.service_package,
+                locationType: booking.location_type,
+                address: booking.address,
+                scheduledAt: booking.scheduled_at,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 text-xs tracking-salon transition-all duration-300 flex items-center justify-center gap-2 rounded-md shadow-sm"
+            >
+              <MessageCircle className="h-4 w-4" />
+              HUBUNGI ARTIST VIA WHATSAPP ({booking.artist.name.toUpperCase()})
+            </a>
           )}
 
           {canCancel && (

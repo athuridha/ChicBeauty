@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { ArrowRight, Check, MapPin } from 'lucide-react'
+import { ArrowRight, Check, MapPin, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { api, type Slot } from '@/lib/api'
 import type { Artist, BusinessRules, ServicePackage } from '@/shared/types'
+import { buildArtistBookingWaLink } from '@/lib/wa'
 
 type Step = 'info' | 'slot' | 'confirm' | 'success'
 
@@ -158,6 +159,32 @@ export default function BookingPage() {
           </div>
 
           <div className="flex flex-col w-full gap-3">
+            {(() => {
+              const selectedArtist = artists.find((a) => a.id === artistId)
+              if (!selectedArtist || !bookingId || !selectedSlot) return null
+              const waLink = buildArtistBookingWaLink({
+                bookingId,
+                artistName: selectedArtist.name,
+                artistPhone: selectedArtist.phone,
+                clientName: fullName,
+                clientPhone: phone,
+                packageName: pkg.name,
+                locationType,
+                address,
+                scheduledAt: selectedSlot.start,
+              })
+              return (
+                <a
+                  href={waLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-4 px-4 text-xs tracking-salon transition-all duration-300 flex items-center justify-center gap-2 shadow-md hover:shadow-lg rounded-none"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  KIRIM WHATSAPP KE ARTIST ({selectedArtist.name.toUpperCase()})
+                </a>
+              )
+            })()}
             <button 
               onClick={() => navigate(`/booking/${bookingId}`)}
               className="w-full bg-salon-charcoal text-salon-cream hover:bg-salon-brown py-4 text-xs tracking-salon transition-colors"

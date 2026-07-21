@@ -93,6 +93,10 @@ router.post('/create', async (req, res) => {
       location_type,
       address,
     },
+    include: {
+      artist: true,
+      client: true,
+    },
   })
 
   await sendEmail(
