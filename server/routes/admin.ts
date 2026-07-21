@@ -10,6 +10,8 @@ const rulesSchema = z.object({
   cancel_threshold_hours: z.number().int().min(0).optional(),
   penalty_percentage: z.number().int().min(0).max(100).optional(),
   buffer_minutes: z.number().int().min(0).optional(),
+  allow_studio: z.boolean().optional(),
+  allow_home_service: z.boolean().optional(),
 })
 
 router.get('/rules', async (_req, res) => {
@@ -156,6 +158,10 @@ router.get('/artists', requireAdmin, async (_req, res) => {
       phone: true,
       start_time: true,
       end_time: true,
+      allows_studio: true,
+      allows_home_service: true,
+      home_service_start_time: true,
+      home_service_end_time: true,
       is_active: true,
       role: true,
       created_at: true,
@@ -171,6 +177,10 @@ const artistSchema = z.object({
   password: z.string().min(6).optional(),
   start_time: z.string().regex(/^\d{2}:\d{2}$/),
   end_time: z.string().regex(/^\d{2}:\d{2}$/),
+  allows_studio: z.boolean().optional(),
+  allows_home_service: z.boolean().optional(),
+  home_service_start_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  home_service_end_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   is_active: z.boolean().optional(),
 })
 
@@ -180,7 +190,7 @@ router.post('/artists', requireAdmin, async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() })
     return
   }
-  const { name, email, phone, password, start_time, end_time, is_active } =
+  const { name, email, phone, password, start_time, end_time, allows_studio, allows_home_service, home_service_start_time, home_service_end_time, is_active } =
     parsed.data
 
   const password_hash = await bcrypt.hash(password ?? 'artist123', 10)
@@ -192,6 +202,10 @@ router.post('/artists', requireAdmin, async (req, res) => {
       password_hash,
       start_time,
       end_time,
+      allows_studio: allows_studio ?? true,
+      allows_home_service: allows_home_service ?? true,
+      home_service_start_time: home_service_start_time ?? '10:00',
+      home_service_end_time: home_service_end_time ?? '18:00',
       is_active: is_active ?? true,
       role: 'artist',
     },
@@ -202,6 +216,10 @@ router.post('/artists', requireAdmin, async (req, res) => {
       phone: true,
       start_time: true,
       end_time: true,
+      allows_studio: true,
+      allows_home_service: true,
+      home_service_start_time: true,
+      home_service_end_time: true,
       is_active: true,
       role: true,
       created_at: true,
@@ -219,7 +237,6 @@ router.patch('/artists/:id', requireAdmin, async (req, res) => {
   }
   const data: any = { ...parsed.data }
   if (parsed.data.password) {
-  
     data.password_hash = await bcrypt.hash(parsed.data.password, 10)
     delete data.password
   }
@@ -233,6 +250,10 @@ router.patch('/artists/:id', requireAdmin, async (req, res) => {
       phone: true,
       start_time: true,
       end_time: true,
+      allows_studio: true,
+      allows_home_service: true,
+      home_service_start_time: true,
+      home_service_end_time: true,
       is_active: true,
       role: true,
       created_at: true,

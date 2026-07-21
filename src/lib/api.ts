@@ -69,9 +69,9 @@ export const api = {
     get: (id: number) => request<Booking>(`/booking/${id}`),
     lookup: (email: string) =>
       request<ClientWithBookings>(`/booking/lookup?email=${encodeURIComponent(email)}`),
-    slots: (artist_id: number, date: string, pkg: string) =>
+    slots: (artist_id: number, date: string, pkg: string, location_type?: 'studio' | 'home_service') =>
       request<SlotsResponse>(
-        `/booking/slots?artist_id=${artist_id}&date=${date}&package=${pkg}`,
+        `/booking/slots?artist_id=${artist_id}&date=${date}&package=${pkg}${location_type ? `&location_type=${location_type}` : ''}`,
       ),
     uploadDeposit: (id: number, file: File) => {
       const fd = new FormData()

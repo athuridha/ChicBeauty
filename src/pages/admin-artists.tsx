@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Edit2, Clock, Mail, Phone, X, ShieldAlert, ArrowLeft, Trash2 } from 'lucide-react'
+import { Plus, Edit2, Mail, Phone, X, ShieldAlert, ArrowLeft, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
@@ -20,6 +20,10 @@ export default function AdminArtistsPage() {
   const [password, setPassword] = useState('')
   const [startTime, setStartTime] = useState('09:00')
   const [endTime, setEndTime] = useState('17:00')
+  const [allowsStudio, setAllowsStudio] = useState(true)
+  const [allowsHomeService, setAllowsHomeService] = useState(true)
+  const [homeServiceStartTime, setHomeServiceStartTime] = useState('10:00')
+  const [homeServiceEndTime, setHomeServiceEndTime] = useState('18:00')
   const [isActive, setIsActive] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -57,6 +61,10 @@ export default function AdminArtistsPage() {
     setPassword('')
     setStartTime('09:00')
     setEndTime('17:00')
+    setAllowsStudio(true)
+    setAllowsHomeService(true)
+    setHomeServiceStartTime('10:00')
+    setHomeServiceEndTime('18:00')
     setIsActive(true)
     setFormError(null)
     setModalOpen(true)
@@ -70,6 +78,10 @@ export default function AdminArtistsPage() {
     setPassword('')
     setStartTime(artist.start_time)
     setEndTime(artist.end_time)
+    setAllowsStudio(artist.allows_studio ?? true)
+    setAllowsHomeService(artist.allows_home_service ?? true)
+    setHomeServiceStartTime(artist.home_service_start_time ?? '10:00')
+    setHomeServiceEndTime(artist.home_service_end_time ?? '18:00')
     setIsActive(artist.is_active)
     setFormError(null)
     setModalOpen(true)
@@ -95,8 +107,20 @@ export default function AdminArtistsPage() {
 
     // Quick regex validation for HH:mm
     const timeRegex = /^\d{2}:\d{2}$/
-    if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
-      setFormError('Format jam mulai/selesai harus HH:mm (contoh: 09:00).')
+    if (allowsStudio && (!timeRegex.test(startTime) || !timeRegex.test(endTime))) {
+      setFormError('Format jam studio (mulai/selesai) harus HH:mm (contoh: 09:00).')
+      setSubmitting(false)
+      return
+    }
+
+    if (allowsHomeService && (!timeRegex.test(homeServiceStartTime) || !timeRegex.test(homeServiceEndTime))) {
+      setFormError('Format jam home service (mulai/selesai) harus HH:mm (contoh: 10:00).')
+      setSubmitting(false)
+      return
+    }
+
+    if (!allowsStudio && !allowsHomeService) {
+      setFormError('Artist harus melayani setidaknya satu lokasi (Di Studio atau Home Service).')
       setSubmitting(false)
       return
     }
@@ -110,6 +134,10 @@ export default function AdminArtistsPage() {
           phone,
           start_time: startTime,
           end_time: endTime,
+          allows_studio: allowsStudio,
+          allows_home_service: allowsHomeService,
+          home_service_start_time: homeServiceStartTime,
+          home_service_end_time: homeServiceEndTime,
           is_active: isActive,
         }
         if (password.trim()) {
@@ -126,6 +154,10 @@ export default function AdminArtistsPage() {
           password: password.trim() ? password : 'artist123',
           start_time: startTime,
           end_time: endTime,
+          allows_studio: allowsStudio,
+          allows_home_service: allowsHomeService,
+          home_service_start_time: homeServiceStartTime,
+          home_service_end_time: homeServiceEndTime,
           is_active: isActive,
         }
         await api.admin.artists.create(payload)
@@ -234,7 +266,7 @@ export default function AdminArtistsPage() {
                     </span>
                   </div>
                   
-                  <div className="space-y-2 text-xs text-salon-taupe leading-relaxed">
+                  <div className="space-y-3 text-xs text-salon-taupe leading-relaxed">
                     <div className="flex items-center gap-2">
                       <Mail className="h-3.5 w-3.5" />
                       <span className="truncate">{a.email}</span>
@@ -243,9 +275,28 @@ export default function AdminArtistsPage() {
                       <Phone className="h-3.5 w-3.5" />
                       <span>{a.phone}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-3.5 w-3.5" />
-                      <span>Jam Kerja: {a.start_time} - {a.end_time}</span>
+                    
+                    <div className="space-y-1.5 pt-2 border-t border-salon-sand/20">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-salon-charcoal">Studio:</span>
+                        {a.allows_studio !== false ? (
+                          <span className="font-mono text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-200/50">
+                            {a.start_time} - {a.end_time}
+                          </span>
+                        ) : (
+                          <span className="text-red-500 italic">Tidak Melayani</span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-salon-charcoal">Home Service:</span>
+                        {a.allows_home_service !== false ? (
+                          <span className="font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/50">
+                            {a.home_service_start_time || '10:00'} - {a.home_service_end_time || '18:00'}
+                          </span>
+                        ) : (
+                          <span className="text-red-500 italic">Tidak Melayani</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -275,7 +326,7 @@ export default function AdminArtistsPage() {
       {/* ─── MODAL DIALOG ─── */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-          <div className="w-full max-w-lg bg-white p-8 md:p-10 shadow-2xl border border-salon-sand/40 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative">
+          <div className="w-full max-w-lg bg-white p-8 md:p-10 shadow-2xl border border-salon-sand/40 flex flex-col gap-6 animate-in zoom-in-95 duration-200 relative max-h-[90vh] overflow-y-auto">
             
             <button 
               onClick={() => setModalOpen(false)} 
@@ -289,7 +340,7 @@ export default function AdminArtistsPage() {
                 {editingArtist ? 'Edit Detail Artist' : 'Tambah Artist Baru'}
               </h2>
               <p className="text-xs text-salon-taupe leading-relaxed">
-                {editingArtist ? 'Ubah informasi personal atau jam kerja artist.' : 'Lengkapi formulir untuk mendaftarkan artist baru.'}
+                {editingArtist ? 'Ubah informasi personal, opsi lokasi, atau jam kerja artist.' : 'Lengkapi formulir untuk mendaftarkan artist baru.'}
               </p>
             </div>
 
@@ -351,29 +402,90 @@ export default function AdminArtistsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal block">JAM MULAI KERJA</label>
+              {/* ─── PENGATURAN STUDIO ─── */}
+              <div className="border border-salon-sand/40 p-4 bg-salon-cream/20 space-y-4">
+                <div className="flex items-center gap-2">
                   <input
-                    type="text"
-                    required
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    placeholder="09:00"
-                    className="w-full border-0 border-b border-salon-sand bg-transparent px-0 py-2 text-salon-charcoal placeholder-salon-taupe/40 focus:ring-0 focus:border-salon-charcoal transition-colors text-sm"
+                    type="checkbox"
+                    id="allows_studio"
+                    checked={allowsStudio}
+                    onChange={(e) => setAllowsStudio(e.target.checked)}
+                    className="h-4 w-4 border-salon-sand text-salon-charcoal focus:ring-salon-charcoal cursor-pointer"
                   />
+                  <label htmlFor="allows_studio" className="text-xs font-bold tracking-salon text-salon-charcoal select-none cursor-pointer">
+                    MELAYANI DI STUDIO
+                  </label>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal block">JAM SELESAI KERJA</label>
+
+                {allowsStudio && (
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-semibold tracking-salon text-salon-taupe block uppercase">JAM MULAI STUDIO</label>
+                      <input
+                        type="text"
+                        required={allowsStudio}
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        placeholder="09:00"
+                        className="w-full border-0 border-b border-salon-sand bg-transparent px-0 py-1 text-salon-charcoal focus:ring-0 focus:border-salon-charcoal transition-colors text-sm font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-semibold tracking-salon text-salon-taupe block uppercase">JAM SELESAI STUDIO</label>
+                      <input
+                        type="text"
+                        required={allowsStudio}
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        placeholder="17:00"
+                        className="w-full border-0 border-b border-salon-sand bg-transparent px-0 py-1 text-salon-charcoal focus:ring-0 focus:border-salon-charcoal transition-colors text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ─── PENGATURAN HOME SERVICE ─── */}
+              <div className="border border-salon-sand/40 p-4 bg-salon-cream/20 space-y-4">
+                <div className="flex items-center gap-2">
                   <input
-                    type="text"
-                    required
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    placeholder="17:00"
-                    className="w-full border-0 border-b border-salon-sand bg-transparent px-0 py-2 text-salon-charcoal placeholder-salon-taupe/40 focus:ring-0 focus:border-salon-charcoal transition-colors text-sm"
+                    type="checkbox"
+                    id="allows_home_service"
+                    checked={allowsHomeService}
+                    onChange={(e) => setAllowsHomeService(e.target.checked)}
+                    className="h-4 w-4 border-salon-sand text-salon-charcoal focus:ring-salon-charcoal cursor-pointer"
                   />
+                  <label htmlFor="allows_home_service" className="text-xs font-bold tracking-salon text-salon-charcoal select-none cursor-pointer">
+                    MELAYANI HOME SERVICE
+                  </label>
                 </div>
+
+                {allowsHomeService && (
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-semibold tracking-salon text-salon-taupe block uppercase">JAM MULAI HOME SERVICE</label>
+                      <input
+                        type="text"
+                        required={allowsHomeService}
+                        value={homeServiceStartTime}
+                        onChange={(e) => setHomeServiceStartTime(e.target.value)}
+                        placeholder="10:00"
+                        className="w-full border-0 border-b border-salon-sand bg-transparent px-0 py-1 text-salon-charcoal focus:ring-0 focus:border-salon-charcoal transition-colors text-sm font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-semibold tracking-salon text-salon-taupe block uppercase">JAM SELESAI HOME SERVICE</label>
+                      <input
+                        type="text"
+                        required={allowsHomeService}
+                        value={homeServiceEndTime}
+                        onChange={(e) => setHomeServiceEndTime(e.target.value)}
+                        placeholder="18:00"
+                        className="w-full border-0 border-b border-salon-sand bg-transparent px-0 py-1 text-salon-charcoal focus:ring-0 focus:border-salon-charcoal transition-colors text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {editingArtist && (

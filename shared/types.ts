@@ -24,6 +24,10 @@ export interface Artist {
   phone: string
   start_time: string // HH:mm
   end_time: string // HH:mm
+  allows_studio?: boolean
+  allows_home_service?: boolean
+  home_service_start_time?: string // HH:mm
+  home_service_end_time?: string // HH:mm
   is_active: boolean
   created_at: string
 }
@@ -34,6 +38,8 @@ export interface BusinessRules {
   cancel_threshold_hours: number
   penalty_percentage: number
   buffer_minutes: number
+  allow_studio?: boolean
+  allow_home_service?: boolean
   updated_at: string
 }
 

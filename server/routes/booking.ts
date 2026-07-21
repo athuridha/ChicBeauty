@@ -45,8 +45,15 @@ router.post('/create', async (req, res) => {
     return
   }
 
-  // Conflict check: same artist, overlapping slot (use buffer_minutes from rules)
   const rules = await prisma.businessRule.findUnique({ where: { id: 1 } })
+  if (location_type === 'studio' && (rules?.allow_studio === false || artist.allows_studio === false)) {
+    res.status(400).json({ error: 'Layanan Di Studio saat ini tidak tersedia untuk artist ini' })
+    return
+  }
+  if (location_type === 'home_service' && (rules?.allow_home_service === false || artist.allows_home_service === false)) {
+    res.status(400).json({ error: 'Layanan Home Service saat ini tidak tersedia untuk artist ini' })
+    return
+  }
   const bufferMin = rules?.buffer_minutes ?? 30
   const start = new Date(scheduled_at)
   const duration = pkgDuration(service_package)
@@ -300,6 +307,7 @@ router.get('/slots', async (req, res) => {
   const artist_id = Number(req.query.artist_id)
   const date = req.query.date as string  // YYYY-MM-DD
   const pkgId = (req.query.package as string | undefined) ?? 'classic'
+  const location_type = (req.query.location_type as string | undefined) ?? 'studio'
   if (!artist_id || !date) {
     res.status(400).json({ error: 'artist_id & date wajib' })
     return
@@ -311,12 +319,30 @@ router.get('/slots', async (req, res) => {
   }
   const pkg = SERVICE_PACKAGES.find((p) => p.id === pkgId) ?? SERVICE_PACKAGES[0]
   const rules = await prisma.businessRule.findUnique({ where: { id: 1 } })
+
+  if (location_type === 'studio' && (rules?.allow_studio === false || artist.allows_studio === false)) {
+    res.json({ artist, package: pkg, slots: [] })
+    return
+  }
+  if (location_type === 'home_service' && (rules?.allow_home_service === false || artist.allows_home_service === false)) {
+    res.json({ artist, package: pkg, slots: [] })
+    return
+  }
+
   const bufferMin = rules?.buffer_minutes ?? 30
   const durationMin = pkg.duration_minutes
 
+  // Determine working hours based on location_type
+  const startTimeStr = location_type === 'home_service'
+    ? (artist.home_service_start_time || artist.start_time)
+    : artist.start_time
+  const endTimeStr = location_type === 'home_service'
+    ? (artist.home_service_end_time || artist.end_time)
+    : artist.end_time
+
   // Artist work hours HH:mm -> minutes since midnight
-  const [sh, sm] = artist.start_time.split(':').map(Number)
-  const [eh, em] = artist.end_time.split(':').map(Number)
+  const [sh, sm] = startTimeStr.split(':').map(Number)
+  const [eh, em] = endTimeStr.split(':').map(Number)
   const dayStart = new Date(`${date}T00:00:00`)
   const workStart = new Date(dayStart)
   workStart.setHours(sh, sm, 0, 0)

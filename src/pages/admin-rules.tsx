@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Percent, Clock, AlertTriangle, Timer } from 'lucide-react'
+import { ArrowLeft, Percent, Clock, AlertTriangle, Timer, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
@@ -21,6 +21,8 @@ export default function AdminRulesPage() {
           cancel_threshold_hours: r.cancel_threshold_hours,
           penalty_percentage: r.penalty_percentage,
           buffer_minutes: r.buffer_minutes,
+          allow_studio: r.allow_studio ?? true,
+          allow_home_service: r.allow_home_service ?? true,
         })
       })
       .catch((e) =>
@@ -80,6 +82,41 @@ export default function AdminRulesPage() {
     )
   }
 
+  function renderToggleField(
+    label: string,
+    description: string,
+    key: 'allow_studio' | 'allow_home_service',
+    icon: React.ReactNode,
+  ) {
+    const isEnabled = form[key] ?? true
+    return (
+      <div className="border border-salon-sand/40 p-6 md:p-8 bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 transition-all duration-300 hover:shadow-md">
+        <div className="space-y-1.5 max-w-md">
+          <div className="flex items-center gap-2 font-serif text-lg text-salon-charcoal">
+            <div className="p-1.5 bg-salon-cream/50 rounded-sm text-salon-taupe">
+              {icon}
+            </div>
+            {label}
+          </div>
+          <p className="text-xs text-salon-taupe leading-relaxed">{description}</p>
+        </div>
+        <div className="flex items-center gap-3 w-full md:w-auto shrink-0 justify-end">
+          <button
+            type="button"
+            onClick={() => setForm((prev) => ({ ...prev, [key]: !isEnabled }))}
+            className={`px-4 py-2 text-xs font-semibold tracking-salon transition-all duration-300 border ${
+              isEnabled
+                ? 'bg-green-700 text-white border-green-700'
+                : 'bg-red-50 text-red-700 border-red-200'
+            }`}
+          >
+            {isEnabled ? 'AKTIF (ON)' : 'NONAKTIF (OFF)'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-salon-cream pb-24">
       {/* ─── HEADER ─── */}
@@ -107,6 +144,18 @@ export default function AdminRulesPage() {
         {rules ? (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
+              {renderToggleField(
+                'Layanan Di Studio',
+                'Aktifkan atau matikan fitur reservasi langsung di studio untuk seluruh pelanggan.',
+                'allow_studio',
+                <MapPin className="h-4 w-4" />,
+              )}
+              {renderToggleField(
+                'Layanan Home Service',
+                'Aktifkan atau matikan fitur reservasi home service (kunjungan rumah) untuk seluruh pelanggan.',
+                'allow_home_service',
+                <MapPin className="h-4 w-4" />,
+              )}
               {renderField(
                 'Deposit Reservasi',
                 'Persentase nominal uang muka yang wajib dibayar klien untuk mengonfirmasi jadwal booking.',

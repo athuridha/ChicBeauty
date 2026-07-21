@@ -47437,6 +47437,14 @@ router.post("/create", async (req, res) => {
     return;
   }
   const rules = await prisma.businessRule.findUnique({ where: { id: 1 } });
+  if (location_type === "studio" && (rules?.allow_studio === false || artist.allows_studio === false)) {
+    res.status(400).json({ error: "Layanan Di Studio saat ini tidak tersedia untuk artist ini" });
+    return;
+  }
+  if (location_type === "home_service" && (rules?.allow_home_service === false || artist.allows_home_service === false)) {
+    res.status(400).json({ error: "Layanan Home Service saat ini tidak tersedia untuk artist ini" });
+    return;
+  }
   const bufferMin = rules?.buffer_minutes ?? 30;
   const start = new Date(scheduled_at);
   const duration = pkgDuration(service_package);
@@ -47661,6 +47669,7 @@ router.get("/slots", async (req, res) => {
   const artist_id = Number(req.query.artist_id);
   const date = req.query.date;
   const pkgId = req.query.package ?? "classic";
+  const location_type = req.query.location_type ?? "studio";
   if (!artist_id || !date) {
     res.status(400).json({ error: "artist_id & date wajib" });
     return;
@@ -47672,10 +47681,20 @@ router.get("/slots", async (req, res) => {
   }
   const pkg = SERVICE_PACKAGES.find((p) => p.id === pkgId) ?? SERVICE_PACKAGES[0];
   const rules = await prisma.businessRule.findUnique({ where: { id: 1 } });
+  if (location_type === "studio" && (rules?.allow_studio === false || artist.allows_studio === false)) {
+    res.json({ artist, package: pkg, slots: [] });
+    return;
+  }
+  if (location_type === "home_service" && (rules?.allow_home_service === false || artist.allows_home_service === false)) {
+    res.json({ artist, package: pkg, slots: [] });
+    return;
+  }
   const bufferMin = rules?.buffer_minutes ?? 30;
   const durationMin = pkg.duration_minutes;
-  const [sh, sm] = artist.start_time.split(":").map(Number);
-  const [eh, em] = artist.end_time.split(":").map(Number);
+  const startTimeStr = location_type === "home_service" ? artist.home_service_start_time || artist.start_time : artist.start_time;
+  const endTimeStr = location_type === "home_service" ? artist.home_service_end_time || artist.end_time : artist.end_time;
+  const [sh, sm] = startTimeStr.split(":").map(Number);
+  const [eh, em] = endTimeStr.split(":").map(Number);
   const dayStart = /* @__PURE__ */ new Date(`${date}T00:00:00`);
   const workStart = new Date(dayStart);
   workStart.setHours(sh, sm, 0, 0);
@@ -47763,6 +47782,10 @@ router2.get("/", async (_req, res) => {
       phone: true,
       start_time: true,
       end_time: true,
+      allows_studio: true,
+      allows_home_service: true,
+      home_service_start_time: true,
+      home_service_end_time: true,
       is_active: true,
       created_at: true
     }
@@ -49519,7 +49542,9 @@ var rulesSchema = external_exports.object({
   deposit_percentage: external_exports.number().int().min(0).max(100).optional(),
   cancel_threshold_hours: external_exports.number().int().min(0).optional(),
   penalty_percentage: external_exports.number().int().min(0).max(100).optional(),
-  buffer_minutes: external_exports.number().int().min(0).optional()
+  buffer_minutes: external_exports.number().int().min(0).optional(),
+  allow_studio: external_exports.boolean().optional(),
+  allow_home_service: external_exports.boolean().optional()
 });
 router3.get("/rules", async (_req, res) => {
   const rules = await prisma.businessRule.upsert({
@@ -49650,6 +49675,10 @@ router3.get("/artists", requireAdmin, async (_req, res) => {
       phone: true,
       start_time: true,
       end_time: true,
+      allows_studio: true,
+      allows_home_service: true,
+      home_service_start_time: true,
+      home_service_end_time: true,
       is_active: true,
       role: true,
       created_at: true
@@ -49664,6 +49693,10 @@ var artistSchema = external_exports.object({
   password: external_exports.string().min(6).optional(),
   start_time: external_exports.string().regex(/^\d{2}:\d{2}$/),
   end_time: external_exports.string().regex(/^\d{2}:\d{2}$/),
+  allows_studio: external_exports.boolean().optional(),
+  allows_home_service: external_exports.boolean().optional(),
+  home_service_start_time: external_exports.string().regex(/^\d{2}:\d{2}$/).optional(),
+  home_service_end_time: external_exports.string().regex(/^\d{2}:\d{2}$/).optional(),
   is_active: external_exports.boolean().optional()
 });
 router3.post("/artists", requireAdmin, async (req, res) => {
@@ -49672,7 +49705,7 @@ router3.post("/artists", requireAdmin, async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { name, email, phone, password, start_time, end_time, is_active } = parsed.data;
+  const { name, email, phone, password, start_time, end_time, allows_studio, allows_home_service, home_service_start_time, home_service_end_time, is_active } = parsed.data;
   const password_hash = await bcryptjs_default.hash(password ?? "artist123", 10);
   const artist = await prisma.artist.create({
     data: {
@@ -49682,6 +49715,10 @@ router3.post("/artists", requireAdmin, async (req, res) => {
       password_hash,
       start_time,
       end_time,
+      allows_studio: allows_studio ?? true,
+      allows_home_service: allows_home_service ?? true,
+      home_service_start_time: home_service_start_time ?? "10:00",
+      home_service_end_time: home_service_end_time ?? "18:00",
       is_active: is_active ?? true,
       role: "artist"
     },
@@ -49692,6 +49729,10 @@ router3.post("/artists", requireAdmin, async (req, res) => {
       phone: true,
       start_time: true,
       end_time: true,
+      allows_studio: true,
+      allows_home_service: true,
+      home_service_start_time: true,
+      home_service_end_time: true,
       is_active: true,
       role: true,
       created_at: true
@@ -49721,6 +49762,10 @@ router3.patch("/artists/:id", requireAdmin, async (req, res) => {
       phone: true,
       start_time: true,
       end_time: true,
+      allows_studio: true,
+      allows_home_service: true,
+      home_service_start_time: true,
+      home_service_end_time: true,
       is_active: true,
       role: true,
       created_at: true

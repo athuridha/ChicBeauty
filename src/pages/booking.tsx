@@ -5,7 +5,7 @@ import { ArrowRight, Check, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { api, type Slot } from '@/lib/api'
-import type { Artist, ServicePackage } from '@/shared/types'
+import type { Artist, BusinessRules, ServicePackage } from '@/shared/types'
 
 type Step = 'info' | 'slot' | 'confirm' | 'success'
 
@@ -13,6 +13,7 @@ export default function BookingPage() {
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>('info')
   const [artists, setArtists] = useState<Artist[]>([])
+  const [rules, setRules] = useState<BusinessRules | null>(null)
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -30,6 +31,18 @@ export default function BookingPage() {
 
   useEffect(() => {
     api.artists.list().then(setArtists).catch(() => {})
+
+    api.admin.rules
+      .get()
+      .then((r) => {
+        setRules(r)
+        if (r.allow_home_service === false && r.allow_studio !== false) {
+          setLocationType('studio')
+        } else if (r.allow_studio === false && r.allow_home_service !== false) {
+          setLocationType('home_service')
+        }
+      })
+      .catch(() => {})
     
     // Fetch dynamic packages
     api.services.list()
@@ -42,7 +55,7 @@ export default function BookingPage() {
       .catch(() => {})
   }, [])
 
-  // Fetch slots when artist + date + package change
+  // Fetch slots when artist + date + package + locationType change
   useEffect(() => {
     if (!artistId || !date || !packageId) {
       setSlots([])
@@ -51,14 +64,14 @@ export default function BookingPage() {
     }
     setLoadingSlots(true)
     api.bookings
-      .slots(artistId, date, packageId)
+      .slots(artistId, date, packageId, locationType)
       .then((res) => {
         setSlots(res.slots)
         setSelectedSlot(null)
       })
       .catch((e) => toast.error('Gagal memuat slot', { description: e.message }))
       .finally(() => setLoadingSlots(false))
-  }, [artistId, date, packageId])
+  }, [artistId, date, packageId, locationType])
 
   const today = new Date().toISOString().slice(0, 10)
   const pkg = packages.find((p) => p.id === packageId) ?? { id: '', name: 'Loading...', duration_minutes: 0, price: 0 }
@@ -225,27 +238,35 @@ export default function BookingPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <button
                       type="button"
+                      disabled={rules?.allow_home_service === false}
                       onClick={() => setLocationType('home_service')}
                       className={`flex flex-col items-center justify-center border py-4 transition-all duration-300 ${
                         locationType === 'home_service'
                           ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream'
                           : 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
-                      }`}
+                      } ${rules?.allow_home_service === false ? 'opacity-40 cursor-not-allowed' : ''}`}
                     >
                       <MapPin className="mb-1 h-4 w-4" />
                       <span className="text-[10px] tracking-salon">HOME SERVICE</span>
+                      {rules?.allow_home_service === false && (
+                        <span className="text-[9px] text-red-400 font-sans mt-0.5">(TIDAK TERSEDIA)</span>
+                      )}
                     </button>
                     <button
                       type="button"
+                      disabled={rules?.allow_studio === false}
                       onClick={() => setLocationType('studio')}
                       className={`flex flex-col items-center justify-center border py-4 transition-all duration-300 ${
                         locationType === 'studio'
                           ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream'
                           : 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
-                      }`}
+                      } ${rules?.allow_studio === false ? 'opacity-40 cursor-not-allowed' : ''}`}
                     >
                       <MapPin className="mb-1 h-4 w-4" />
                       <span className="text-[10px] tracking-salon">DI STUDIO</span>
+                      {rules?.allow_studio === false && (
+                        <span className="text-[9px] text-red-400 font-sans mt-0.5">(TIDAK TERSEDIA)</span>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -293,9 +314,15 @@ export default function BookingPage() {
                         onChange={(e) => setArtistId(Number(e.target.value) || null)}
                       >
                         <option value="">Pilih Artist...</option>
-                        {artists.map((a) => (
-                          <option key={a.id} value={a.id}>{a.name}</option>
-                        ))}
+                        {artists
+                          .filter((a) => {
+                            if (locationType === 'studio') return a.allows_studio !== false
+                            if (locationType === 'home_service') return a.allows_home_service !== false
+                            return true
+                          })
+                          .map((a) => (
+                            <option key={a.id} value={a.id}>{a.name}</option>
+                          ))}
                       </select>
                     </div>
                   </div>

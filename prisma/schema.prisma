@@ -21,29 +21,35 @@ model Client {
 }
 
 model Artist {
-  id          Int      @id @default(autoincrement())
-  name        String
-  email       String   @unique
-  phone       String
-  password_hash String
-  start_time  String   // HH:mm
-  end_time    String   // HH:mm
-  is_active   Boolean  @default(true)
-  role        String   @default("artist") // admin | artist
-  created_at  DateTime @default(now())
-  bookings    Booking[]
-  photos      BeforeAfterPhoto[]
+  id                      Int      @id @default(autoincrement())
+  name                    String
+  email                   String   @unique
+  phone                   String
+  password_hash           String
+  start_time              String   // HH:mm
+  end_time                String   // HH:mm
+  allows_studio           Boolean  @default(true)
+  allows_home_service     Boolean  @default(true)
+  home_service_start_time String   @default("10:00") // HH:mm
+  home_service_end_time   String   @default("18:00") // HH:mm
+  is_active               Boolean  @default(true)
+  role                    String   @default("artist") // admin | artist
+  created_at              DateTime @default(now())
+  bookings                Booking[]
+  photos                  BeforeAfterPhoto[]
 
   @@map("artists")
 }
 
 model BusinessRule {
   id                    Int      @id @default(1)
-  deposit_percentage   Int      @default(50)
-  cancel_threshold_hours Int    @default(24)
+  deposit_percentage    Int      @default(50)
+  cancel_threshold_hours Int     @default(24)
   penalty_percentage    Int      @default(100)
-  buffer_minutes       Int      @default(30)
-  updated_at           DateTime @updatedAt
+  buffer_minutes        Int      @default(30)
+  allow_studio          Boolean  @default(true)
+  allow_home_service    Boolean  @default(true)
+  updated_at            DateTime @updatedAt
 
   @@map("business_rules")
 }
