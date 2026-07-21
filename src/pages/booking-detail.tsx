@@ -179,11 +179,10 @@ export default function BookingDetailPage() {
                 Jam
               </span>
               <span className="font-medium">
-                {new Date(booking.scheduled_at).toLocaleTimeString('id-ID', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false,
-                })}
+                {(() => {
+                  const d = new Date(booking.scheduled_at)
+                  return `${String(d.getHours()).padStart(2, '0')}.${String(d.getMinutes()).padStart(2, '0')}`
+                })()}
               </span>
             </div>
             <div className="flex items-center justify-between">

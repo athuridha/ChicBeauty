@@ -296,9 +296,10 @@ export default function AdminDashboardPage() {
                             })}
                           </span>
                           <span className="text-xs text-salon-taupe block mt-0.5">
-                            {new Date(b.scheduled_at).toLocaleTimeString('id-ID', {
-                              hour: '2-digit', minute: '2-digit', hour12: false
-                            })}
+                            {(() => {
+                              const d = new Date(b.scheduled_at)
+                              return `${String(d.getHours()).padStart(2, '0')}.${String(d.getMinutes()).padStart(2, '0')}`
+                            })()}
                           </span>
                         </td>
                         <td className="p-6 text-sm text-salon-charcoal">{b.service_package}</td>

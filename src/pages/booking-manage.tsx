@@ -149,9 +149,10 @@ export default function BookingManagePage() {
                             <Clock className="h-3 w-3" /> WAKTU
                           </span>
                           <p className="text-sm font-medium text-salon-charcoal">
-                            {new Date(b.scheduled_at).toLocaleTimeString('id-ID', {
-                              hour: '2-digit', minute: '2-digit', hour12: false,
-                            })}
+                            {(() => {
+                              const d = new Date(b.scheduled_at)
+                              return `${String(d.getHours()).padStart(2, '0')}.${String(d.getMinutes()).padStart(2, '0')}`
+                            })()}
                           </p>
                         </div>
                         

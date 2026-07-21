@@ -427,9 +427,10 @@ export default function BookingPage() {
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {slots.map((s) => {
-                        const time = new Date(s.start).toLocaleTimeString('id-ID', {
-                          hour: '2-digit', minute: '2-digit', hour12: false
-                        }).replace(':', '.')
+                        const d = new Date(s.start)
+                        const hours = String(d.getHours()).padStart(2, '0')
+                        const minutes = String(d.getMinutes()).padStart(2, '0')
+                        const time = `${hours}.${minutes}`
                         const selected = selectedSlot?.start === s.start
                         return (
                           <button
@@ -494,9 +495,10 @@ export default function BookingPage() {
                 />
                 <Row 
                   label="WAKTU" 
-                  value={new Date(selectedSlot.start).toLocaleTimeString('id-ID', {
-                    hour: '2-digit', minute: '2-digit', hour12: false
-                  })} 
+                  value={(() => {
+                    const d = new Date(selectedSlot.start)
+                    return `${String(d.getHours()).padStart(2, '0')}.${String(d.getMinutes()).padStart(2, '0')}`
+                  })()} 
                 />
                 <Row label="ARTIST" value={artists.find((a) => a.id === artistId)?.name ?? '-'} />
                 
