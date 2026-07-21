@@ -2,10 +2,12 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import multer from 'multer'
 
-const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads')
+const UPLOAD_DIR = process.env.VERCEL
+  ? '/tmp'
+  : path.resolve(process.cwd(), 'uploads')
 
 export async function ensureUploadDir() {
-  await fs.mkdir(UPLOAD_DIR, { recursive: true })
+  await fs.mkdir(UPLOAD_DIR, { recursive: true }).catch(() => {})
 }
 
 export const upload = multer({

@@ -39,8 +39,9 @@ app.use((req, _res, next) => {
   next()
 })
 
-// Static uploads (foto before/after + bukti deposit) — local dev only, Vercel has read-only fs
-app.use('/uploads', express.static(process.cwd() + '/uploads'))
+// Static uploads (foto before/after + bukti deposit)
+const uploadStaticDir = process.env.VERCEL ? '/tmp' : process.cwd() + '/uploads'
+app.use('/uploads', express.static(uploadStaticDir))
 
 app.use('/api/booking', bookingRoutes)
 app.use('/api/artists', artistRoutes)
