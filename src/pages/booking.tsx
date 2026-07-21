@@ -248,47 +248,46 @@ export default function BookingPage() {
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-4">
-                  <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal">PILIH LOKASI TREATMENT</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      type="button"
-                      disabled={rules?.allow_home_service === false}
-                      onClick={() => setLocationType('home_service')}
-                      className={`flex flex-col items-center justify-center border py-4 transition-all duration-300 ${
-                        locationType === 'home_service'
-                          ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream'
-                          : 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
-                      } ${rules?.allow_home_service === false ? 'opacity-40 cursor-not-allowed' : ''}`}
-                    >
-                      <MapPin className="mb-1 h-4 w-4" />
-                      <span className="text-[10px] tracking-salon">HOME SERVICE</span>
-                      {rules?.allow_home_service === false && (
-                        <span className="text-[9px] text-red-400 font-sans mt-0.5">(TIDAK TERSEDIA)</span>
+                {/* ─── LOKASI SELECTION (ONLY SHOW ACTIVE OPTIONS) ─── */}
+                {(rules?.allow_home_service !== false || rules?.allow_studio !== false) && (
+                  <div className="space-y-3 pt-4">
+                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">PILIH LOKASI TREATMENT</label>
+                    <div className={`grid ${rules?.allow_home_service !== false && rules?.allow_studio !== false ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+                      {rules?.allow_home_service !== false && (
+                        <button
+                          type="button"
+                          onClick={() => setLocationType('home_service')}
+                          className={`flex flex-col items-center justify-center border py-4 transition-all duration-300 ${
+                            locationType === 'home_service'
+                              ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream shadow-sm'
+                              : 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
+                          }`}
+                        >
+                          <MapPin className="mb-1 h-4 w-4" />
+                          <span className="text-[10px] tracking-salon font-semibold uppercase">HOME SERVICE</span>
+                        </button>
                       )}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={rules?.allow_studio === false}
-                      onClick={() => setLocationType('studio')}
-                      className={`flex flex-col items-center justify-center border py-4 transition-all duration-300 ${
-                        locationType === 'studio'
-                          ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream'
-                          : 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
-                      } ${rules?.allow_studio === false ? 'opacity-40 cursor-not-allowed' : ''}`}
-                    >
-                      <MapPin className="mb-1 h-4 w-4" />
-                      <span className="text-[10px] tracking-salon">DI STUDIO</span>
-                      {rules?.allow_studio === false && (
-                        <span className="text-[9px] text-red-400 font-sans mt-0.5">(TIDAK TERSEDIA)</span>
+                      {rules?.allow_studio !== false && (
+                        <button
+                          type="button"
+                          onClick={() => setLocationType('studio')}
+                          className={`flex flex-col items-center justify-center border py-4 transition-all duration-300 ${
+                            locationType === 'studio'
+                              ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream shadow-sm'
+                              : 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
+                          }`}
+                        >
+                          <MapPin className="mb-1 h-4 w-4" />
+                          <span className="text-[10px] tracking-salon font-semibold uppercase">DI STUDIO</span>
+                        </button>
                       )}
-                    </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {locationType === 'home_service' && (
+                {locationType === 'home_service' && rules?.allow_home_service !== false && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal">ALAMAT LENGKAP</label>
+                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">ALAMAT LENGKAP</label>
                     <textarea
                       className="w-full min-h-[80px] border-0 border-b border-salon-sand bg-transparent px-0 py-2 text-salon-charcoal placeholder-salon-taupe/40 focus:ring-0 focus:border-salon-charcoal transition-colors resize-none text-sm leading-relaxed"
                       placeholder="Nama jalan, RT/RW, Patokan..."
@@ -319,43 +318,43 @@ export default function BookingPage() {
               <p className="text-salon-taupe text-xs mb-8">Tentukan artist, paket, dan waktu treatment Anda.</p>
               
               <div className="space-y-6">
-                {/* Location selector toggle in Step 2 */}
-                <div className="space-y-2 pb-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">LOKASI TREATMENT</label>
-                    <span className="text-[10px] font-medium text-salon-taupe">
-                      {locationType === 'home_service' ? 'Home Service (Kunjungan Rumah)' : 'Di Studio'}
-                    </span>
+                {/* Location selector toggle in Step 2 ONLY if both locations are enabled */}
+                {rules?.allow_home_service !== false && rules?.allow_studio !== false && (
+                  <div className="space-y-2 pb-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">LOKASI TREATMENT</label>
+                      <span className="text-[10px] font-medium text-salon-taupe">
+                        {locationType === 'home_service' ? 'Home Service (Kunjungan Rumah)' : 'Di Studio'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setLocationType('home_service')}
+                        className={`flex items-center justify-center gap-2 border py-2.5 transition-all duration-300 ${
+                          locationType === 'home_service'
+                            ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream'
+                            : 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
+                        }`}
+                      >
+                        <MapPin className="h-3.5 w-3.5" />
+                        <span className="text-[10px] tracking-salon font-semibold uppercase">HOME SERVICE</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLocationType('studio')}
+                        className={`flex items-center justify-center gap-2 border py-2.5 transition-all duration-300 ${
+                          locationType === 'studio'
+                            ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream'
+                            : 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
+                        }`}
+                      >
+                        <MapPin className="h-3.5 w-3.5" />
+                        <span className="text-[10px] tracking-salon font-semibold uppercase">DI STUDIO</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      disabled={rules?.allow_home_service === false}
-                      onClick={() => setLocationType('home_service')}
-                      className={`flex items-center justify-center gap-2 border py-2.5 transition-all duration-300 ${
-                        locationType === 'home_service'
-                          ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream'
-                          : 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
-                      } ${rules?.allow_home_service === false ? 'opacity-40 cursor-not-allowed' : ''}`}
-                    >
-                      <MapPin className="h-3.5 w-3.5" />
-                      <span className="text-[10px] tracking-salon font-semibold uppercase">HOME SERVICE</span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={rules?.allow_studio === false}
-                      onClick={() => setLocationType('studio')}
-                      className={`flex items-center justify-center gap-2 border py-2.5 transition-all duration-300 ${
-                        locationType === 'studio'
-                          ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream'
-                          : 'border-salon-sand bg-transparent text-salon-charcoal hover:border-salon-charcoal'
-                      } ${rules?.allow_studio === false ? 'opacity-40 cursor-not-allowed' : ''}`}
-                    >
-                      <MapPin className="h-3.5 w-3.5" />
-                      <span className="text-[10px] tracking-salon font-semibold uppercase">DI STUDIO</span>
-                    </button>
-                  </div>
-                </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
