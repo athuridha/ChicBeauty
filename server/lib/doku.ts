@@ -34,7 +34,6 @@ export function generateDokuSignature(
   requestTarget: string,
   bodyString: string
 ) {
-  // Digest = Base64(SHA256(bodyString))
   const hash = crypto.createHash('sha256').update(bodyString).digest()
   const digest = hash.toString('base64')
 
@@ -48,14 +47,17 @@ export function generateDokuSignature(
   return `HMACSHA256=${hmac.toString('base64')}`
 }
 
-export async function createDokuCheckoutPayment(params: CreateDokuPaymentParams) {
-  const { clientId, secretKey, baseUrl } = getDokuConfig()
+async function executeDokuRequest(
+  baseUrl: string,
+  params: CreateDokuPaymentParams,
+  clientId: string,
+  secretKey: string
+) {
   const requestId = `REQ-${params.bookingId}-${Date.now()}`
   const requestTimestamp = new Date().toISOString().slice(0, 19) + 'Z'
   const requestTarget = '/checkout/v1/payment'
   const invoiceNumber = `INV-CB-${params.bookingId}-${Date.now()}`
 
-  // App host for callback redirect
   const appUrl = process.env.APP_URL || 'https://chicbeauty.codzy.net'
 
   const body = {
@@ -73,7 +75,7 @@ export async function createDokuCheckoutPayment(params: CreateDokuPaymentParams)
       auto_redirect: true,
     },
     payment: {
-      payment_due_date: 120, // 2 jam sesuai aturan deposit PRD
+      payment_due_date: 120,
     },
     customer: {
       id: `CUST-${params.bookingId}`,
@@ -107,7 +109,7 @@ export async function createDokuCheckoutPayment(params: CreateDokuPaymentParams)
     })
 
     const data = (await response.json()) as Record<string, any>
-    console.log('[DOKU Checkout Response]', { status: response.status, data })
+    console.log('[DOKU Checkout Response]', { baseUrl, status: response.status, data })
 
     if (data?.response?.payment?.url) {
       return {
@@ -116,17 +118,39 @@ export async function createDokuCheckoutPayment(params: CreateDokuPaymentParams)
         invoiceNumber,
       }
     } else {
+      const errorMsg =
+        data?.error?.message ||
+        data?.error?.details?.[0]?.message ||
+        data?.message ||
+        (data?.error ? JSON.stringify(data.error) : 'Gagal membuat sesi pembayaran DOKU')
+
       return {
         success: false,
-        error: data?.error?.message || data?.message || 'Gagal membuat sesi pembayaran DOKU',
+        error: errorMsg,
         detail: data,
       }
     }
   } catch (err) {
-    console.error('[DOKU Checkout Error]', err)
+    console.error('[DOKU Request Error]', err)
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Terjadi kesalahan sistem DOKU',
     }
   }
+}
+
+export async function createDokuCheckoutPayment(params: CreateDokuPaymentParams) {
+  const { clientId, secretKey, isProduction } = getDokuConfig()
+
+  const primaryUrl = isProduction ? 'https://api.doku.com' : 'https://api-sandbox.doku.com'
+  const fallbackUrl = isProduction ? 'https://api-sandbox.doku.com' : 'https://api.doku.com'
+
+  let res = await executeDokuRequest(primaryUrl, params, clientId, secretKey)
+
+  if (!res.success && res.error && /Invalid Client-Id/i.test(res.error)) {
+    console.log('[DOKU Auto-Fallback] Primary URL returned Invalid Client-Id, retrying with fallback endpoint:', fallbackUrl)
+    res = await executeDokuRequest(fallbackUrl, params, clientId, secretKey)
+  }
+
+  return res
 }
