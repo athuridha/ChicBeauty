@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Calendar, Clock, Upload, AlertCircle, Check, X, MapPin } from 'lucide-react'
+import { Calendar, Clock, Upload, AlertCircle, Check, X, MapPin, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
@@ -38,8 +38,29 @@ export default function BookingDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [dokuLoading, setDokuLoading] = useState(false)
   const [canceling, setCanceling] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  async function handleDokuPayment() {
+    if (!booking) return
+    setDokuLoading(true)
+    try {
+      const res = await api.doku.createPayment(booking.id)
+      if (res.ok && res.paymentUrl) {
+        toast.info('Mengarahkan ke pembayaran DOKU Virtual Account...')
+        window.location.href = res.paymentUrl
+      } else {
+        toast.error('Gagal membuat sesi pembayaran DOKU')
+      }
+    } catch (err) {
+      toast.error('Gagal menghubungi DOKU Payment Gateway', {
+        description: err instanceof Error ? err.message : undefined,
+      })
+    } finally {
+      setDokuLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!bookingId) return
@@ -209,13 +230,33 @@ export default function BookingDetailPage() {
             )}
           </div>
 
+          {/* Payment Options */}
+          {status === 'pending_deposit' && (
+            <div className="space-y-4">
+              <Button
+                type="button"
+                onClick={handleDokuPayment}
+                disabled={dokuLoading}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3.5 px-4 text-xs tracking-salon transition-all duration-300 flex items-center justify-center gap-2 rounded-md shadow-sm"
+              >
+                <CreditCard className="h-4 w-4" />
+                {dokuLoading ? 'MEMPROSES DOKU…' : 'BAYAR DEPOSIT VIA VIRTUAL ACCOUNT (DOKU)'}
+              </Button>
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-gray-200"></div>
+                <span className="flex-shrink mx-3 text-[10px] text-gray-400 font-medium uppercase tracking-wider">atau upload manual</span>
+                <div className="flex-grow border-t border-gray-200"></div>
+              </div>
+            </div>
+          )}
+
           {/* Deposit upload */}
           {canUploadDeposit && (
             <div className="rounded-md border border-dashed p-4 space-y-3">
               <div className="flex items-start gap-2 text-sm">
                 <Upload className="mt-0.5 h-4 w-4 text-primary" />
                 <div>
-                  <p className="font-medium">Upload Bukti Deposit</p>
+                  <p className="font-medium">Upload Bukti Deposit Manual</p>
                   <p className="text-xs text-muted-foreground">
                     JPG/PNG, maks 5MB. Status berubah jadi confirmed otomatis.
                   </p>

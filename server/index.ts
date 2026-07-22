@@ -9,6 +9,7 @@ import authRoutes from './routes/auth'
 import clientRoutes from './routes/client'
 import photoRoutes from './routes/photo'
 import serviceRoutes from './routes/service'
+import dokuRoutes from './routes/doku'
 import multer from 'multer'
 
 const app = express()
@@ -50,6 +51,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/clients', clientRoutes)
 app.use('/api', photoRoutes)
 app.use('/api/services', serviceRoutes)
+app.use('/api/doku', dokuRoutes)
 
 // Health
 app.get('/api/health', (_req, res) => res.json({ ok: true }))

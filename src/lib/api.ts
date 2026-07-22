@@ -212,6 +212,13 @@ export const api = {
       request<ServicePackage>(`/services/admin/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<{ ok: boolean }>(`/services/admin/${id}`, { method: 'DELETE' }),
   },
+  doku: {
+    createPayment: (bookingId: number) =>
+      request<{ ok: boolean; paymentUrl: string; invoiceNumber: string; depositAmount: number }>(
+        `/doku/create-payment/${bookingId}`,
+        { method: 'POST' }
+      ),
+  },
 }
 
 export type BookingStatusFilter = BookingStatus
