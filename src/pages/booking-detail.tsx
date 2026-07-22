@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
+import DokuPaymentModal from '@/components/doku-payment-modal'
 import type { Booking, BookingStatus } from '@/shared/types'
 
 const STATUS_LABELS: Record<BookingStatus, string> = {
@@ -39,6 +40,8 @@ export default function BookingDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [dokuLoading, setDokuLoading] = useState(false)
+  const [dokuUrl, setDokuUrl] = useState('')
+  const [dokuModalOpen, setDokuModalOpen] = useState(false)
   const [canceling, setCanceling] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -48,8 +51,9 @@ export default function BookingDetailPage() {
     try {
       const res = await api.doku.createPayment(booking.id)
       if (res.ok && res.paymentUrl) {
-        toast.info('Mengarahkan ke pembayaran DOKU Virtual Account...')
-        window.location.href = res.paymentUrl
+        setDokuUrl(res.paymentUrl)
+        setDokuModalOpen(true)
+        toast.success('Halaman pembayaran Virtual Account DOKU terbuka!')
       } else {
         toast.error('Gagal membuat sesi pembayaran DOKU', {
           description: res.error || 'Silakan gunakan opsi upload deposit manual di bawah.',
@@ -321,6 +325,18 @@ export default function BookingDetailPage() {
           )}
         </div>
       </div>
+
+      <DokuPaymentModal
+        isOpen={dokuModalOpen}
+        onClose={() => setDokuModalOpen(false)}
+        paymentUrl={dokuUrl}
+        bookingId={booking.id}
+        onPaymentSuccess={(updated) => {
+          setBooking(updated)
+          setDokuModalOpen(false)
+          toast.success('Deposit terverifikasi! Status booking terkonfirmasi.')
+        }}
+      />
     </div>
   </main>
   )

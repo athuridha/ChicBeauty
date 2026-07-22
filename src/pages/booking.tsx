@@ -8,6 +8,7 @@ import { api, type Slot } from '@/lib/api'
 import type { Artist, BusinessRules, ServicePackage } from '@/shared/types'
 
 import LocationPicker from '@/components/location-picker'
+import DokuPaymentModal from '@/components/doku-payment-modal'
 
 type Step = 'info' | 'slot' | 'confirm' | 'success'
 
@@ -30,6 +31,8 @@ export default function BookingPage() {
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [creating, setCreating] = useState(false)
   const [dokuLoading, setDokuLoading] = useState(false)
+  const [dokuUrl, setDokuUrl] = useState('')
+  const [dokuModalOpen, setDokuModalOpen] = useState(false)
   const [bookingId, setBookingId] = useState<number | null>(null)
 
   async function handleDokuPaymentFromSuccess() {
@@ -38,8 +41,9 @@ export default function BookingPage() {
     try {
       const res = await api.doku.createPayment(bookingId)
       if (res.ok && res.paymentUrl) {
-        toast.info('Mengarahkan ke pembayaran DOKU Virtual Account...')
-        window.location.href = res.paymentUrl
+        setDokuUrl(res.paymentUrl)
+        setDokuModalOpen(true)
+        toast.success('Halaman pembayaran Virtual Account DOKU terbuka!')
       } else {
         toast.error('Gagal membuat sesi pembayaran DOKU', {
           description: res.error || 'Silakan klik tombol Detail / Upload Deposit Manual.',
@@ -208,6 +212,17 @@ export default function BookingPage() {
               BOOKING LAGI
             </button>
           </div>
+
+          <DokuPaymentModal
+            isOpen={dokuModalOpen}
+            onClose={() => setDokuModalOpen(false)}
+            paymentUrl={dokuUrl}
+            bookingId={bookingId}
+            onPaymentSuccess={() => {
+              setDokuModalOpen(false)
+              navigate(`/booking/${bookingId}`)
+            }}
+          />
         </div>
       </main>
     )
