@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { ArrowRight, Check, MapPin, MessageCircle } from 'lucide-react'
+import { ArrowRight, Check, MapPin, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { api, type Slot } from '@/lib/api'
 import type { Artist, BusinessRules, ServicePackage } from '@/shared/types'
-import { buildArtistBookingWaLink } from '@/lib/wa'
 
 type Step = 'info' | 'slot' | 'confirm' | 'success'
 
@@ -28,7 +27,28 @@ export default function BookingPage() {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [dokuLoading, setDokuLoading] = useState(false)
   const [bookingId, setBookingId] = useState<number | null>(null)
+
+  async function handleDokuPaymentFromSuccess() {
+    if (!bookingId) return
+    setDokuLoading(true)
+    try {
+      const res = await api.doku.createPayment(bookingId)
+      if (res.ok && res.paymentUrl) {
+        toast.info('Mengarahkan ke pembayaran DOKU Virtual Account...')
+        window.location.href = res.paymentUrl
+      } else {
+        toast.error('Gagal membuat sesi pembayaran DOKU')
+      }
+    } catch (err) {
+      toast.error('Gagal menghubungi DOKU Payment Gateway', {
+        description: err instanceof Error ? err.message : undefined,
+      })
+    } finally {
+      setDokuLoading(false)
+    }
+  }
 
   useEffect(() => {
     api.artists.list().then(setArtists).catch(() => {})
@@ -150,47 +170,33 @@ export default function BookingPage() {
             />
           </div>
 
-          <div className="space-y-2 text-sm text-salon-taupe mb-10">
-            <p>Simpan ID ini atau scan QR untuk akses halaman booking Anda.</p>
-            <p className="font-medium text-salon-charcoal">
-              Silakan upload bukti deposit dalam 2 jam.
+          <div className="rounded-md bg-green-50 p-4 border border-green-200/60 text-left w-full mb-6 space-y-1">
+            <p className="text-xs font-semibold text-green-900 flex items-center gap-1.5">
+              <Check className="h-4 w-4 text-green-600 shrink-0" />
+              Notifikasi WA Otomatis Terkirim
             </p>
-            <p>Jika tidak, booking otomatis dibatalkan.</p>
+            <p className="text-[11px] text-green-700 leading-relaxed">
+              Rincian reservasi telah dikirimkan secara otomatis via WhatsApp ke nomor Anda, Artist, dan Management.
+            </p>
           </div>
 
           <div className="flex flex-col w-full gap-3">
-            {(() => {
-              const selectedArtist = artists.find((a) => a.id === artistId)
-              if (!selectedArtist || !bookingId || !selectedSlot) return null
-              const waLink = buildArtistBookingWaLink({
-                bookingId,
-                artistName: selectedArtist.name,
-                artistPhone: selectedArtist.phone,
-                clientName: fullName,
-                clientPhone: phone,
-                packageName: pkg.name,
-                locationType,
-                address,
-                scheduledAt: selectedSlot.start,
-              })
-              return (
-                <a
-                  href={waLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-4 px-4 text-xs tracking-salon transition-all duration-300 flex items-center justify-center gap-2 shadow-md hover:shadow-lg rounded-none"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  KIRIM WHATSAPP KE ARTIST ({selectedArtist.name.toUpperCase()})
-                </a>
-              )
-            })()}
+            <button
+              onClick={handleDokuPaymentFromSuccess}
+              disabled={dokuLoading}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-4 px-4 text-xs tracking-salon transition-all duration-300 flex items-center justify-center gap-2 shadow-md hover:shadow-lg rounded-none"
+            >
+              <CreditCard className="h-4 w-4" />
+              {dokuLoading ? 'MEMPROSES DOKU…' : 'BAYAR DEPOSIT VIA VIRTUAL ACCOUNT (DOKU)'}
+            </button>
+
             <button 
               onClick={() => navigate(`/booking/${bookingId}`)}
               className="w-full bg-salon-charcoal text-salon-cream hover:bg-salon-brown py-4 text-xs tracking-salon transition-colors"
             >
-              UPLOAD DEPOSIT SEKARANG
+              LIHAT DETAIL / UPLOAD DEPOSIT MANUAL
             </button>
+
             <button 
               onClick={reset}
               className="w-full bg-transparent border border-salon-sand/50 text-salon-charcoal hover:bg-salon-sand/10 py-4 text-xs tracking-salon transition-colors"
