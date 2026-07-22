@@ -8,13 +8,11 @@ import {
   Download,
   Check,
   X,
-  MessageCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
 import type { Booking, BookingStatus } from '@/shared/types'
-import { buildArtistBookingWaLink } from '@/lib/wa'
 
 interface Stats {
   bookings_today: number
@@ -312,29 +310,6 @@ export default function AdminDashboardPage() {
                         </td>
                         <td className="p-6 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {b.artist?.phone && (
-                              <a
-                                href={buildArtistBookingWaLink({
-                                  bookingId: b.id,
-                                  artistName: b.artist.name,
-                                  artistPhone: b.artist.phone,
-                                  clientName: b.client?.full_name || 'Pelanggan',
-                                  clientPhone: b.client?.phone || '',
-                                  packageName: b.service_package,
-                                  locationType: b.location_type,
-                                  address: b.address,
-                                  scheduledAt: b.scheduled_at,
-                                })}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="bg-emerald-600 text-white hover:bg-emerald-700 text-[10px] font-semibold tracking-salon px-2.5 py-2 transition-colors flex items-center gap-1"
-                                title={`Kirim WA Ke Artist (${b.artist.name})`}
-                              >
-                                <MessageCircle className="h-3 w-3" />
-                                WA ARTIST
-                              </a>
-                            )}
-
                             {status === 'pending_deposit' && (
                               <button
                                 disabled={actingId === b.id}

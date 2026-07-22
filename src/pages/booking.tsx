@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { ArrowRight, Check, MapPin, CreditCard } from 'lucide-react'
+import { ArrowRight, Check, MapPin, CreditCard, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { api, type Slot } from '@/lib/api'
@@ -19,6 +19,8 @@ export default function BookingPage() {
   const [phone, setPhone] = useState('')
   const [locationType, setLocationType] = useState<'studio' | 'home_service'>('home_service')
   const [address, setAddress] = useState('')
+  const [gettingLocation, setGettingLocation] = useState(false)
+  const [mapsUrl, setMapsUrl] = useState('')
   const [artistId, setArtistId] = useState<number | null>(null)
   const [packages, setPackages] = useState<ServicePackage[]>([])
   const [packageId, setPackageId] = useState('')
@@ -29,6 +31,39 @@ export default function BookingPage() {
   const [creating, setCreating] = useState(false)
   const [dokuLoading, setDokuLoading] = useState(false)
   const [bookingId, setBookingId] = useState<number | null>(null)
+
+  function handleGetGpsLocation() {
+    if (!navigator.geolocation) {
+      toast.error('Browser Anda tidak mendukung GPS Geolocation')
+      return
+    }
+    setGettingLocation(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude.toFixed(6)
+        const lng = pos.coords.longitude.toFixed(6)
+        const gmapsLink = `https://maps.google.com/?q=${lat},${lng}`
+        setMapsUrl(gmapsLink)
+        setGettingLocation(false)
+        toast.success('Lokasi presisi GPS berhasil ditemukan!')
+
+        setAddress((prev) => {
+          const cleanPrev = prev ? prev.trim() : ''
+          if (cleanPrev.includes(gmapsLink)) return cleanPrev
+          return cleanPrev
+            ? `${cleanPrev}\n📍 Pin Maps: ${gmapsLink}`
+            : `📍 Pin Maps: ${gmapsLink}`
+        })
+      },
+      (err) => {
+        setGettingLocation(false)
+        toast.error('Gagal mengambil lokasi GPS', {
+          description: err.message || 'Mohon izinkan akses lokasi di perangkat Anda',
+        })
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
 
   async function handleDokuPaymentFromSuccess() {
     if (!bookingId) return
@@ -319,11 +354,42 @@ export default function BookingPage() {
                 )}
 
                 {locationType === 'home_service' && rules?.allow_home_service !== false && (
-                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">ALAMAT LENGKAP</label>
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">
+                        ALAMAT LENGKAP & LOKASI PRESISI
+                      </label>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleGetGpsLocation}
+                      disabled={gettingLocation}
+                      className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300/80 py-3 px-4 text-xs font-semibold tracking-salon transition-all duration-300 flex items-center justify-center gap-2 rounded-sm"
+                    >
+                      <Navigation className="h-4 w-4 text-emerald-600 animate-pulse" />
+                      {gettingLocation ? 'MENGAMBIL LOKASI GPS…' : '📍 DETEKSI LOKASI PRESISI SAAT INI (GPS MAPS PIN)'}
+                    </button>
+
+                    {mapsUrl && (
+                      <div className="flex items-center justify-between rounded bg-green-50 p-2.5 text-xs text-green-800 border border-green-200">
+                        <span className="font-medium text-[11px] truncate max-w-[240px]">
+                          ✓ Pin GPS: {mapsUrl}
+                        </span>
+                        <a
+                          href={mapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-bold text-green-700 underline hover:text-green-900"
+                        >
+                          Buka Maps ↗
+                        </a>
+                      </div>
+                    )}
+
                     <textarea
-                      className="w-full min-h-[80px] border-0 border-b border-salon-sand bg-transparent px-0 py-2 text-salon-charcoal placeholder-salon-taupe/40 focus:ring-0 focus:border-salon-charcoal transition-colors resize-none text-sm leading-relaxed"
-                      placeholder="Nama jalan, RT/RW, Patokan..."
+                      className="w-full min-h-[90px] border-0 border-b border-salon-sand bg-transparent px-0 py-2 text-salon-charcoal placeholder-salon-taupe/40 focus:ring-0 focus:border-salon-charcoal transition-colors resize-none text-sm leading-relaxed"
+                      placeholder="Nama jalan, RT/RW, nomor rumah, patokan..."
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                     />

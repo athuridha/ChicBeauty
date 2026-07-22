@@ -69,7 +69,7 @@ export async function sendBookingCreatedWA(params: {
 
   const locationText =
     params.locationType === 'home_service'
-      ? `Home Service (${params.address || 'Alamat Klien'})`
+      ? `Home Service\n• Alamat: ${params.address || 'Alamat Klien'}`
       : 'Studio ChicBeauty'
 
   // 1. Send Client Notification
