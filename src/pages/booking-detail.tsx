@@ -51,11 +51,13 @@ export default function BookingDetailPage() {
         toast.info('Mengarahkan ke pembayaran DOKU Virtual Account...')
         window.location.href = res.paymentUrl
       } else {
-        toast.error('Gagal membuat sesi pembayaran DOKU')
+        toast.error('Gagal membuat sesi pembayaran DOKU', {
+          description: res.error || 'Silakan gunakan opsi upload deposit manual di bawah.',
+        })
       }
     } catch (err) {
-      toast.error('Gagal menghubungi DOKU Payment Gateway', {
-        description: err instanceof Error ? err.message : undefined,
+      toast.error('Gagal memproses pembayaran DOKU', {
+        description: err instanceof Error ? err.message : 'Silakan gunakan opsi upload deposit manual di bawah.',
       })
     } finally {
       setDokuLoading(false)

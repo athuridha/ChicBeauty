@@ -214,7 +214,7 @@ export const api = {
   },
   doku: {
     createPayment: (bookingId: number) =>
-      request<{ ok: boolean; paymentUrl: string; invoiceNumber: string; depositAmount: number }>(
+      request<{ ok: boolean; paymentUrl?: string; invoiceNumber?: string; depositAmount?: number; error?: string }>(
         `/doku/create-payment/${bookingId}`,
         { method: 'POST' }
       ),
