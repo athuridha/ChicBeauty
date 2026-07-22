@@ -15,10 +15,19 @@ export interface CreateDokuPaymentParams {
   depositAmount: number
 }
 
+export function sanitizeDokuString(str: string): string {
+  if (!str) return ''
+  return str
+    .replace(/[—–]/g, '-')
+    .replace(/[()]/g, '')
+    .replace(/[^a-zA-Z0-9.\-/\+,=_:'@%\s]/g, '')
+    .trim()
+}
+
 export function getDokuConfig() {
-  const clientId = process.env.DOKU_CLIENT_ID || 'doku_key_75d8f047fafb40d6b7f0986799b65556'
+  const clientId = process.env.DOKU_CLIENT_ID || 'BRN-0225-1784688342705'
   const secretKey = process.env.DOKU_SECRET_KEY || 'SK-JrDIUeOJJ0xlTpUYpZ8A'
-  const isProduction = process.env.DOKU_IS_PRODUCTION === 'true'
+  const isProduction = process.env.DOKU_IS_PRODUCTION !== 'false'
   const baseUrl = isProduction
     ? 'https://api.doku.com'
     : 'https://api-sandbox.doku.com'
@@ -60,13 +69,17 @@ async function executeDokuRequest(
 
   const appUrl = process.env.APP_URL || 'https://chicbeauty.codzy.net'
 
+  const cleanPackageName = sanitizeDokuString(`Deposit 50% ${params.packageName} - ChicBeauty`)
+  const cleanClientName = sanitizeDokuString(params.clientName) || 'Pelanggan ChicBeauty'
+  const cleanPhone = (params.clientPhone || '').replace(/[^0-9]/g, '') || '081234567890'
+
   const body = {
     order: {
       invoice_number: invoiceNumber,
       amount: params.depositAmount,
       line_items: [
         {
-          name: `Deposit 50% ${params.packageName} — ChicBeauty`,
+          name: cleanPackageName,
           price: params.depositAmount,
           quantity: 1,
         },
@@ -79,9 +92,9 @@ async function executeDokuRequest(
     },
     customer: {
       id: `CUST-${params.bookingId}`,
-      name: params.clientName,
-      email: params.clientEmail,
-      phone: params.clientPhone,
+      name: cleanClientName,
+      email: params.clientEmail || 'klien@chicbeauty.net',
+      phone: cleanPhone,
     },
   }
 
@@ -120,6 +133,7 @@ async function executeDokuRequest(
     } else {
       const errorMsg =
         data?.error?.message ||
+        (Array.isArray(data?.error) ? data.error.join(', ') : null) ||
         data?.error?.details?.[0]?.message ||
         data?.message ||
         (data?.error ? JSON.stringify(data.error) : 'Gagal membuat sesi pembayaran DOKU')
