@@ -357,6 +357,8 @@ router.post('/bookings/:id/confirm-deposit', requireAdmin, async (req, res) => {
     serviceName: updated.service_package,
     depositAmount: Number(updated.deposit_paid ?? 0),
     scheduledAt: updated.scheduled_at,
+    artistName: updated.artist?.name,
+    artistPhone: updated.artist?.phone,
   }).catch(() => {})
 
   res.json(updated)
@@ -401,6 +403,8 @@ router.post('/bookings/:id/cancel', requireAdmin, async (req, res) => {
     clientName: updated.client?.full_name ?? '',
     bookingId: updated.id,
     reason: applyPenalty ? 'Pembatalan oleh Admin (penalti)' : 'Dibatalkan oleh Admin',
+    artistName: updated.artist?.name,
+    artistPhone: updated.artist?.phone,
   }).catch(() => {})
 
   res.json(updated)

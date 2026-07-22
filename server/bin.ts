@@ -19,7 +19,7 @@ async function autoCancelExpiredDeposits() {
         status: 'pending_deposit',
         created_at: { lt: cutoff },
       },
-      include: { client: true },
+      include: { client: true, artist: true },
     })
     for (const b of expired) {
       await prisma.booking.update({
@@ -36,6 +36,8 @@ async function autoCancelExpiredDeposits() {
         clientName: b.client?.full_name ?? '',
         bookingId: b.id,
         reason: 'Deposit 50% tidak diterima dalam waktu 2 jam',
+        artistName: b.artist?.name,
+        artistPhone: b.artist?.phone,
       }).catch(() => {})
       console.log(`[auto-cancel] booking #${b.id} cancelled`)
     }

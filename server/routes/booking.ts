@@ -122,6 +122,7 @@ router.post('/create', async (req, res) => {
     locationType: booking.location_type,
     address: booking.address,
     artistName: booking.artist?.name,
+    artistPhone: booking.artist?.phone,
   }).catch(() => {})
 
   res.status(201).json(booking)
@@ -131,7 +132,7 @@ router.post('/:id/deposit-upload', upload.single('file'), async (req, res) => {
   const id = Number(req.params.id)
   const booking = await prisma.booking.findUnique({
     where: { id },
-    include: { client: true },
+    include: { client: true, artist: true },
   })
   if (!booking) {
     res.status(404).json({ error: 'Booking tidak ditemukan' })
@@ -155,7 +156,7 @@ router.post('/:id/deposit-upload', upload.single('file'), async (req, res) => {
       status: 'confirmed',
       deposit_paid: depositAmount,
     },
-    include: { client: true },
+    include: { client: true, artist: true },
   })
   await sendEmail(
     booking.client?.email ?? '',
@@ -170,6 +171,8 @@ router.post('/:id/deposit-upload', upload.single('file'), async (req, res) => {
     serviceName: updated.service_package,
     depositAmount: Number(updated.deposit_paid ?? 0),
     scheduledAt: updated.scheduled_at,
+    artistName: updated.artist?.name,
+    artistPhone: updated.artist?.phone,
   }).catch(() => {})
 
   res.json(updated)
@@ -179,7 +182,7 @@ router.post('/:id/cancel', async (req, res) => {
   const id = Number(req.params.id)
   const booking = await prisma.booking.findUnique({
     where: { id },
-    include: { client: true },
+    include: { client: true, artist: true },
   })
   if (!booking) {
     res.status(404).json({ error: 'Booking tidak ditemukan' })
@@ -209,6 +212,8 @@ router.post('/:id/cancel', async (req, res) => {
     clientName: booking.client?.full_name ?? '',
     bookingId: booking.id,
     reason: applyPenalty ? 'Pembatalan melewati batas waktu toleransi' : 'Dibatalkan oleh Klien',
+    artistName: booking.artist?.name,
+    artistPhone: booking.artist?.phone,
   }).catch(() => {})
 
   res.json({ ok: true, penalty_applied: penalty })
@@ -272,6 +277,7 @@ router.post('/:id/check-in', async (req, res) => {
     bookingId: updated.id,
     serviceName: updated.service_package,
     artistName: updated.artist?.name,
+    artistPhone: updated.artist?.phone,
   }).catch(() => {})
 
   res.json(updated)
@@ -294,7 +300,7 @@ router.post('/:id/complete', async (req, res) => {
   const updated = await prisma.booking.update({
     where: { id },
     data: { status: 'completed' },
-    include: { client: true },
+    include: { client: true, artist: true },
   })
 
   sendBookingCompletedWA({
@@ -302,6 +308,8 @@ router.post('/:id/complete', async (req, res) => {
     clientName: updated.client?.full_name ?? '',
     bookingId: updated.id,
     serviceName: updated.service_package,
+    artistName: updated.artist?.name,
+    artistPhone: updated.artist?.phone,
   }).catch(() => {})
 
   res.json(updated)
@@ -357,7 +365,7 @@ router.post('/:id/reschedule', async (req, res) => {
   const updated = await prisma.booking.update({
     where: { id },
     data: { scheduled_at: newStart },
-    include: { client: true },
+    include: { client: true, artist: true },
   })
 
   sendBookingRescheduledWA({
@@ -366,6 +374,8 @@ router.post('/:id/reschedule', async (req, res) => {
     bookingId: updated.id,
     serviceName: updated.service_package,
     newScheduledAt: updated.scheduled_at,
+    artistName: updated.artist?.name,
+    artistPhone: updated.artist?.phone,
   }).catch(() => {})
 
   res.json(updated)

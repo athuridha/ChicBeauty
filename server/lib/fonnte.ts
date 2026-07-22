@@ -1,17 +1,27 @@
-export async function sendWhatsApp(target: string, message: string) {
+export const OWNER_PHONE = process.env.OWNER_PHONE || '085213971757'
+
+export async function sendWhatsApp(target: string | string[], message: string) {
   const token = process.env.FONNTE_TOKEN || 'Sr6pMPEdbwWHcyG4QSyQ'
   if (!target || !token) {
     console.log('[fonnte mock] Target or token missing:', { target, message })
     return null
   }
 
-  // Sanitize phone number (keep digits and commas for multiple targets)
-  const cleanTarget = target.replace(/[^0-9,]/g, '')
-  if (!cleanTarget) return null
+  // Handle single or multiple target numbers
+  const targetArray = Array.isArray(target) ? target : [target]
+  const cleanTargets = targetArray
+    .filter(Boolean)
+    .map((t) => t.replace(/[^0-9]/g, ''))
+    .filter((t) => t.length >= 8)
+    .filter((t, index, self) => self.indexOf(t) === index) // Unique targets
+
+  if (cleanTargets.length === 0) return null
+
+  const cleanTargetStr = cleanTargets.join(',')
 
   try {
     const formData = new URLSearchParams()
-    formData.append('target', cleanTarget)
+    formData.append('target', cleanTargetStr)
     formData.append('message', message)
     formData.append('countryCode', '62')
 
@@ -24,7 +34,7 @@ export async function sendWhatsApp(target: string, message: string) {
     })
 
     const data = (await res.json()) as Record<string, any>
-    console.log('[fonnte response]', { target: cleanTarget, status: data?.status, detail: data })
+    console.log('[fonnte response]', { target: cleanTargetStr, status: data?.status, detail: data })
     return data
   } catch (err) {
     console.error('[fonnte error]', err)
@@ -43,6 +53,7 @@ export async function sendBookingCreatedWA(params: {
   locationType: string
   address?: string | null
   artistName?: string
+  artistPhone?: string | null
 }) {
   const dateStr = params.scheduledAt.toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -61,7 +72,8 @@ export async function sendBookingCreatedWA(params: {
       ? `Home Service (${params.address || 'Alamat Klien'})`
       : 'Studio ChicBeauty'
 
-  const message = `Halo Kak ${params.clientName}, Terima kasih telah melakukan pemesanan di ChicBeauty! ✨
+  // 1. Send Client Notification
+  const clientMessage = `Halo Kak ${params.clientName}, Terima kasih telah melakukan pemesanan di ChicBeauty! ✨
 
 *DETAIL RESERVASI*
 • ID Booking: #${params.bookingId}
@@ -80,7 +92,23 @@ https://chicbeauty.codzy.net/booking/${params.bookingId}
 Terima kasih,
 ChicBeauty Team`
 
-  return sendWhatsApp(params.phone, message)
+  await sendWhatsApp(params.phone, clientMessage)
+
+  // 2. Send Staff / Owner Notification (to Owner & Artist)
+  const staffTargets = [OWNER_PHONE]
+  if (params.artistPhone) staffTargets.push(params.artistPhone)
+
+  const staffMessage = `🔔 *RESERVASI BARU DIBUAT (#${params.bookingId})*
+
+• Klien: ${params.clientName} (${params.phone})
+• Layanan: ${params.serviceName}
+• Tanggal: ${dateStr}
+• Waktu: ${timeStr} WIB
+• Artist: ${params.artistName || '-'}
+• Lokasi: ${locationText}
+• Status: Pending Deposit (2 jam)`
+
+  return sendWhatsApp(staffTargets, staffMessage)
 }
 
 export async function sendDepositConfirmedWA(params: {
@@ -90,6 +118,8 @@ export async function sendDepositConfirmedWA(params: {
   serviceName: string
   depositAmount: number
   scheduledAt: Date
+  artistName?: string
+  artistPhone?: string | null
 }) {
   const dateStr = params.scheduledAt.toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -103,7 +133,8 @@ export async function sendDepositConfirmedWA(params: {
     hour12: false,
   })
 
-  const message = `Halo Kak ${params.clientName}, Deposit Anda telah BERHASIL Di-konfirmasi! 🎉
+  // 1. Client notification
+  const clientMessage = `Halo Kak ${params.clientName}, Deposit Anda telah BERHASIL Di-konfirmasi! 🎉
 
 *STATUS: RESERVASI TERKONFIRMASI*
 • ID Booking: #${params.bookingId}
@@ -116,7 +147,21 @@ Terima kasih, kami siap menyambut Anda pada jadwal yang telah ditentukan! ✨
 
 ChicBeauty Team`
 
-  return sendWhatsApp(params.phone, message)
+  await sendWhatsApp(params.phone, clientMessage)
+
+  // 2. Staff / Owner notification
+  const staffTargets = [OWNER_PHONE]
+  if (params.artistPhone) staffTargets.push(params.artistPhone)
+
+  const staffMessage = `✅ *DEPOSIT TERKONFIRMASI (#${params.bookingId})*
+
+• Klien: ${params.clientName} (${params.phone})
+• Layanan: ${params.serviceName}
+• Tanggal: ${dateStr} ${timeStr} WIB
+• Artist: ${params.artistName || '-'}
+• Deposit Diterima: Rp ${params.depositAmount.toLocaleString('id-ID')}`
+
+  return sendWhatsApp(staffTargets, staffMessage)
 }
 
 export async function sendBookingCheckedInWA(params: {
@@ -125,12 +170,23 @@ export async function sendBookingCheckedInWA(params: {
   bookingId: number
   serviceName: string
   artistName?: string
+  artistPhone?: string | null
 }) {
-  const message = `Halo Kak ${params.clientName}, Artist kami (${params.artistName || 'ChicBeauty Artist'}) telah melakukan Check-in untuk penanganan ID Booking #${params.bookingId} (${params.serviceName}).
+  // Client Notification
+  const clientMessage = `Halo Kak ${params.clientName}, Artist kami (${params.artistName || 'ChicBeauty Artist'}) telah melakukan Check-in untuk penanganan ID Booking #${params.bookingId} (${params.serviceName}).
 
 Selamat menikmati perawatan terbaik dari ChicBeauty! ✨`
 
-  return sendWhatsApp(params.phone, message)
+  await sendWhatsApp(params.phone, clientMessage)
+
+  // Owner Notification
+  const staffMessage = `📍 *ARTIST CHECK-IN (#${params.bookingId})*
+
+• Artist: ${params.artistName || '-'}
+• Klien: ${params.clientName}
+• Layanan: ${params.serviceName}`
+
+  return sendWhatsApp(OWNER_PHONE, staffMessage)
 }
 
 export async function sendBookingCompletedWA(params: {
@@ -138,12 +194,24 @@ export async function sendBookingCompletedWA(params: {
   clientName: string
   bookingId: number
   serviceName: string
+  artistName?: string
+  artistPhone?: string | null
 }) {
-  const message = `Halo Kak ${params.clientName}, Treatment ${params.serviceName} (ID #${params.bookingId}) telah SELESAI. 💖
+  // Client Notification
+  const clientMessage = `Halo Kak ${params.clientName}, Treatment ${params.serviceName} (ID #${params.bookingId}) telah SELESAI. 💖
 
 Terima kasih telah mempercayakan kecantikan Anda kepada ChicBeauty! Sampai jumpa di perawatan berikutnya. ✨`
 
-  return sendWhatsApp(params.phone, message)
+  await sendWhatsApp(params.phone, clientMessage)
+
+  // Owner Notification
+  const staffMessage = `🎉 *TREATMENT SELESAI (#${params.bookingId})*
+
+• Klien: ${params.clientName}
+• Layanan: ${params.serviceName}
+• Artist: ${params.artistName || '-'}`
+
+  return sendWhatsApp(OWNER_PHONE, staffMessage)
 }
 
 export async function sendBookingRescheduledWA(params: {
@@ -152,6 +220,8 @@ export async function sendBookingRescheduledWA(params: {
   bookingId: number
   serviceName: string
   newScheduledAt: Date
+  artistName?: string
+  artistPhone?: string | null
 }) {
   const dateStr = params.newScheduledAt.toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -165,7 +235,8 @@ export async function sendBookingRescheduledWA(params: {
     hour12: false,
   })
 
-  const message = `Halo Kak ${params.clientName}, Jadwal reservasi ID #${params.bookingId} (${params.serviceName}) Anda telah DIPERBARUI. 🗓️
+  // Client Notification
+  const clientMessage = `Halo Kak ${params.clientName}, Jadwal reservasi ID #${params.bookingId} (${params.serviceName}) Anda telah DIPERBARUI. 🗓️
 
 *JADWAL BARU*
 • Tanggal: ${dateStr}
@@ -174,7 +245,20 @@ export async function sendBookingRescheduledWA(params: {
 Terima kasih,
 ChicBeauty Team`
 
-  return sendWhatsApp(params.phone, message)
+  await sendWhatsApp(params.phone, clientMessage)
+
+  // Owner & Artist Notification
+  const staffTargets = [OWNER_PHONE]
+  if (params.artistPhone) staffTargets.push(params.artistPhone)
+
+  const staffMessage = `🗓️ *JADWAL RESERVASI DIPERBARUI (#${params.bookingId})*
+
+• Klien: ${params.clientName} (${params.phone})
+• Layanan: ${params.serviceName}
+• Artist: ${params.artistName || '-'}
+• Jadwal Baru: ${dateStr} ${timeStr} WIB`
+
+  return sendWhatsApp(staffTargets, staffMessage)
 }
 
 export async function sendBookingCancelledWA(params: {
@@ -182,13 +266,29 @@ export async function sendBookingCancelledWA(params: {
   clientName: string
   bookingId: number
   reason?: string
+  artistName?: string
+  artistPhone?: string | null
 }) {
   const reasonText = params.reason ? ` (Alasan: ${params.reason})` : ''
-  const message = `Halo Kak ${params.clientName}, Reservasi ID #${params.bookingId} telah DIBATALKAN${reasonText}.
+
+  // Client Notification
+  const clientMessage = `Halo Kak ${params.clientName}, Reservasi ID #${params.bookingId} telah DIBATALKAN${reasonText}.
 
 Jika Anda membutuhkan reservasi baru, silakan lakukan pemesanan kembali di website kami https://chicbeauty.codzy.net/booking
 
 ChicBeauty Team`
 
-  return sendWhatsApp(params.phone, message)
+  await sendWhatsApp(params.phone, clientMessage)
+
+  // Owner & Artist Notification
+  const staffTargets = [OWNER_PHONE]
+  if (params.artistPhone) staffTargets.push(params.artistPhone)
+
+  const staffMessage = `❌ *RESERVASI DIBATALKAN (#${params.bookingId})*
+
+• Klien: ${params.clientName} (${params.phone})
+• Artist: ${params.artistName || '-'}
+• Keterangan: ${params.reason || 'Dibatalkan'}`
+
+  return sendWhatsApp(staffTargets, staffMessage)
 }
