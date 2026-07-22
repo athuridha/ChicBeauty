@@ -146,7 +146,7 @@ router.post('/:id/deposit-upload', upload.single('file'), async (req, res) => {
   // Mark deposit paid using rules percentage of package price
   const rules = await prisma.businessRule.findUnique({ where: { id: 1 } })
   const pct = rules?.deposit_percentage ?? 50
-  const pkg = SERVICE_PACKAGES.find((p) => p.name === booking.service_package)
+  const pkg = await prisma.servicePackage.findFirst({ where: { name: booking.service_package } })
   const price = pkg?.price ?? 0
   const depositAmount = (price * pct) / 100
 
