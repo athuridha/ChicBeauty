@@ -3,6 +3,14 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { sendEmail } from '../lib/email'
 import { upload } from '../lib/upload'
+import {
+  sendBookingCreatedWA,
+  sendDepositConfirmedWA,
+  sendBookingCheckedInWA,
+  sendBookingCompletedWA,
+  sendBookingRescheduledWA,
+  sendBookingCancelledWA,
+} from '../lib/fonnte'
 
 const router = Router()
 
@@ -105,6 +113,17 @@ router.post('/create', async (req, res) => {
     `Booking ID #${booking.id}. Status: pending_deposit. Upload bukti deposit dalam 2 jam.`,
   ).catch(() => {})
 
+  sendBookingCreatedWA({
+    phone: client.phone,
+    clientName: client.full_name,
+    bookingId: booking.id,
+    serviceName: booking.service_package,
+    scheduledAt: booking.scheduled_at,
+    locationType: booking.location_type,
+    address: booking.address,
+    artistName: booking.artist?.name,
+  }).catch(() => {})
+
   res.status(201).json(booking)
 })
 
@@ -143,12 +162,25 @@ router.post('/:id/deposit-upload', upload.single('file'), async (req, res) => {
     'Deposit Diterima — Amar Klinik',
     `Booking ID #${id} terkonfirmasi. Deposit: Rp${depositAmount.toLocaleString('id-ID')}.`,
   ).catch(() => {})
+
+  sendDepositConfirmedWA({
+    phone: updated.client?.phone ?? '',
+    clientName: updated.client?.full_name ?? '',
+    bookingId: updated.id,
+    serviceName: updated.service_package,
+    depositAmount: Number(updated.deposit_paid ?? 0),
+    scheduledAt: updated.scheduled_at,
+  }).catch(() => {})
+
   res.json(updated)
 })
 
 router.post('/:id/cancel', async (req, res) => {
   const id = Number(req.params.id)
-  const booking = await prisma.booking.findUnique({ where: { id } })
+  const booking = await prisma.booking.findUnique({
+    where: { id },
+    include: { client: true },
+  })
   if (!booking) {
     res.status(404).json({ error: 'Booking tidak ditemukan' })
     return
@@ -171,6 +203,14 @@ router.post('/:id/cancel', async (req, res) => {
       penalty_applied: penalty,
     },
   })
+
+  sendBookingCancelledWA({
+    phone: booking.client?.phone ?? '',
+    clientName: booking.client?.full_name ?? '',
+    bookingId: booking.id,
+    reason: applyPenalty ? 'Pembatalan melewati batas waktu toleransi' : 'Dibatalkan oleh Klien',
+  }).catch(() => {})
+
   res.json({ ok: true, penalty_applied: penalty })
 })
 
@@ -223,8 +263,17 @@ router.post('/:id/check-in', async (req, res) => {
   const updated = await prisma.booking.update({
     where: { id },
     data: { status: 'checked_in' },
-    include: { client: true },
+    include: { client: true, artist: true },
   })
+
+  sendBookingCheckedInWA({
+    phone: updated.client?.phone ?? '',
+    clientName: updated.client?.full_name ?? '',
+    bookingId: updated.id,
+    serviceName: updated.service_package,
+    artistName: updated.artist?.name,
+  }).catch(() => {})
+
   res.json(updated)
 })
 
@@ -247,6 +296,14 @@ router.post('/:id/complete', async (req, res) => {
     data: { status: 'completed' },
     include: { client: true },
   })
+
+  sendBookingCompletedWA({
+    phone: updated.client?.phone ?? '',
+    clientName: updated.client?.full_name ?? '',
+    bookingId: updated.id,
+    serviceName: updated.service_package,
+  }).catch(() => {})
+
   res.json(updated)
 })
 
@@ -302,6 +359,15 @@ router.post('/:id/reschedule', async (req, res) => {
     data: { scheduled_at: newStart },
     include: { client: true },
   })
+
+  sendBookingRescheduledWA({
+    phone: updated.client?.phone ?? '',
+    clientName: updated.client?.full_name ?? '',
+    bookingId: updated.id,
+    serviceName: updated.service_package,
+    newScheduledAt: updated.scheduled_at,
+  }).catch(() => {})
+
   res.json(updated)
 })
 

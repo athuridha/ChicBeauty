@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { requireAdmin, requireAuth } from '../middleware/auth'
 import bcrypt from 'bcryptjs'
+import { sendDepositConfirmedWA, sendBookingCancelledWA, sendWhatsApp } from '../lib/fonnte'
 const router = Router()
 
 const rulesSchema = z.object({
@@ -348,6 +349,16 @@ router.post('/bookings/:id/confirm-deposit', requireAdmin, async (req, res) => {
     data: { status: 'confirmed', deposit_paid: depositAmount },
     include: { client: true, artist: true },
   })
+
+  sendDepositConfirmedWA({
+    phone: updated.client?.phone ?? '',
+    clientName: updated.client?.full_name ?? '',
+    bookingId: updated.id,
+    serviceName: updated.service_package,
+    depositAmount: Number(updated.deposit_paid ?? 0),
+    scheduledAt: updated.scheduled_at,
+  }).catch(() => {})
+
   res.json(updated)
 })
 
@@ -384,7 +395,26 @@ router.post('/bookings/:id/cancel', requireAdmin, async (req, res) => {
     },
     include: { client: true, artist: true },
   })
+
+  sendBookingCancelledWA({
+    phone: updated.client?.phone ?? '',
+    clientName: updated.client?.full_name ?? '',
+    bookingId: updated.id,
+    reason: applyPenalty ? 'Pembatalan oleh Admin (penalti)' : 'Dibatalkan oleh Admin',
+  }).catch(() => {})
+
   res.json(updated)
+})
+
+// Test WhatsApp send via Fonnte
+router.post('/test-wa', requireAdmin, async (req, res) => {
+  const { target, message } = req.body
+  if (!target || !message) {
+    res.status(400).json({ error: 'target dan message wajib diisi' })
+    return
+  }
+  const result = await sendWhatsApp(target, message)
+  res.json({ ok: true, result })
 })
 
 export default router

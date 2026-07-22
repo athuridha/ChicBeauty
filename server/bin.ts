@@ -2,6 +2,7 @@ import app from './index'
 import { ensureUploadDir } from './lib/upload'
 import { PrismaClient } from '@prisma/client'
 import { sendEmail } from './lib/email'
+import { sendBookingCancelledWA } from './lib/fonnte'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
@@ -30,6 +31,12 @@ async function autoCancelExpiredDeposits() {
         'Booking Dibatalkan — Deposit Tidak Diterima',
         `Booking ID #${b.id} dibatalkan otomatis karena deposit tidak diterima dalam 2 jam.`,
       ).catch(() => {})
+      await sendBookingCancelledWA({
+        phone: b.client?.phone ?? '',
+        clientName: b.client?.full_name ?? '',
+        bookingId: b.id,
+        reason: 'Deposit 50% tidak diterima dalam waktu 2 jam',
+      }).catch(() => {})
       console.log(`[auto-cancel] booking #${b.id} cancelled`)
     }
   } catch (e) {
