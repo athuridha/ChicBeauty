@@ -32,6 +32,9 @@ export interface Artist {
   created_at: string
 }
 
+export type PaymentMode = 'deposit' | 'pay_after_service' | 'flexible'
+export type PaymentType = 'deposit' | 'pay_after_service'
+
 export interface BusinessRules {
   id: number
   deposit_percentage: number
@@ -40,6 +43,7 @@ export interface BusinessRules {
   buffer_minutes: number
   allow_studio?: boolean
   allow_home_service?: boolean
+  payment_mode?: PaymentMode
   updated_at: string
 }
 
@@ -52,6 +56,7 @@ export interface Booking {
   location_type: 'studio' | 'home_service'
   address: string | null
   status: BookingStatus
+  payment_type?: PaymentType
   deposit_paid: number | null
   penalty_applied: number | null
   created_at: string

@@ -13,6 +13,7 @@ const rulesSchema = z.object({
   buffer_minutes: z.number().int().min(0).optional(),
   allow_studio: z.boolean().optional(),
   allow_home_service: z.boolean().optional(),
+  payment_mode: z.enum(['deposit', 'pay_after_service', 'flexible']).optional(),
 })
 
 router.get('/rules', async (_req, res) => {

@@ -222,8 +222,18 @@ export default function BookingDetailPage() {
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Deposit dibayar</span>
-              <span className="font-medium">{fmtMoney(booking.deposit_paid)}</span>
+              <span className="text-muted-foreground">Sistem Pembayaran</span>
+              <span className="font-medium text-xs">
+                {booking.payment_type === 'pay_after_service' ? 'Bayar Selesai (Ke Artist)' : 'Deposit / DP Online'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">
+                {booking.payment_type === 'pay_after_service' ? 'Status Pembayaran' : 'Deposit dibayar'}
+              </span>
+              <span className="font-medium">
+                {booking.payment_type === 'pay_after_service' ? 'Bayar Selesai Di Tempat' : fmtMoney(booking.deposit_paid)}
+              </span>
             </div>
             {booking.penalty_applied !== null && (
               <div className="flex items-center justify-between text-red-700">
@@ -256,8 +266,8 @@ export default function BookingDetailPage() {
             </div>
           )}
 
-          {/* Deposit upload */}
-          {canUploadDeposit && (
+          {/* Deposit upload (Only if deposit flow) */}
+          {canUploadDeposit && booking.payment_type !== 'pay_after_service' && (
             <div className="rounded-md border border-dashed p-4 space-y-3">
               <div className="flex items-start gap-2 text-sm">
                 <Upload className="mt-0.5 h-4 w-4 text-primary" />
@@ -283,11 +293,15 @@ export default function BookingDetailPage() {
             <div className="flex items-start gap-2.5 rounded-md bg-green-50 p-4 text-sm text-green-800 border border-green-200/60">
               <Check className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
               <div>
-                <p className="font-semibold text-green-900">Booking Terkonfirmasi</p>
+                <p className="font-semibold text-green-900">
+                  {booking.payment_type === 'pay_after_service' ? 'Booking Terkonfirmasi (Bayar Selesai)' : 'Booking Terkonfirmasi'}
+                </p>
                 <p className="text-xs text-green-700 mt-1 leading-relaxed">
-                  {booking.location_type === 'home_service' 
-                    ? `Notifikasi WA otomatis telah dikirim ke Artist (${booking.artist?.name ?? 'Artist'}) & Management. Artist akan datang ke lokasi Anda.` 
-                    : `Notifikasi WA otomatis telah dikirim ke Artist (${booking.artist?.name ?? 'Artist'}) & Management. Sampai jumpa di studio!`}
+                  {booking.payment_type === 'pay_after_service'
+                    ? 'Pembayaran penuh dilakukan secara tunai / QRIS / transfer langsung kepada artist setelah treatment selesai.'
+                    : booking.location_type === 'home_service' 
+                      ? `Notifikasi WA otomatis telah dikirim ke Artist (${booking.artist?.name ?? 'Artist'}) & Management. Artist akan datang ke lokasi Anda.` 
+                      : `Notifikasi WA otomatis telah dikirim ke Artist (${booking.artist?.name ?? 'Artist'}) & Management. Sampai jumpa di studio!`}
                 </p>
               </div>
             </div>

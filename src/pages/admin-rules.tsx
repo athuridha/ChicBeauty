@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Percent, Clock, AlertTriangle, Timer, MapPin } from 'lucide-react'
+import { ArrowLeft, Percent, Clock, AlertTriangle, Timer, MapPin, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { api } from '@/lib/api'
@@ -23,6 +23,7 @@ export default function AdminRulesPage() {
           buffer_minutes: r.buffer_minutes,
           allow_studio: r.allow_studio ?? true,
           allow_home_service: r.allow_home_service ?? true,
+          payment_mode: r.payment_mode ?? 'deposit',
         })
       })
       .catch((e) =>
@@ -117,6 +118,78 @@ export default function AdminRulesPage() {
     )
   }
 
+  function renderPaymentModeField() {
+    const currentMode = form.payment_mode ?? 'deposit'
+    const modes: { id: 'deposit' | 'pay_after_service' | 'flexible'; title: string; desc: string }[] = [
+      {
+        id: 'deposit',
+        title: 'Wajib Deposit / DP Dulu',
+        desc: 'Klien wajib membayar DP (misal 50%) untuk mengonfirmasi reservasi.',
+      },
+      {
+        id: 'pay_after_service',
+        title: 'Bayar Selesai (Ke Artist)',
+        desc: 'Tanpa DP. Klien bayar penuh langsung ke artist setelah selesai treatment.',
+      },
+      {
+        id: 'flexible',
+        title: 'Fleksibel (Pilihan Klien)',
+        desc: 'Klien dapat memilih opsi bayar DP atau bayar langsung setelah selesai saat booking.',
+      },
+    ]
+
+    return (
+      <div className="border border-salon-sand/40 p-6 md:p-8 bg-white space-y-4 transition-all duration-300 hover:shadow-md">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 font-serif text-lg text-salon-charcoal">
+            <div className="p-1.5 bg-salon-cream/50 rounded-sm text-salon-taupe">
+              <CreditCard className="h-4 w-4" />
+            </div>
+            Skema / Sistem Pembayaran
+          </div>
+          <p className="text-xs text-salon-taupe leading-relaxed">
+            Tentukan metode pembayaran yang berlaku saat pelanggan melakukan reservasi online.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+          {modes.map((m) => {
+            const selected = currentMode === m.id
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, payment_mode: m.id }))}
+                className={`p-4 border text-left flex flex-col justify-between transition-all duration-200 ${
+                  selected
+                    ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream shadow-sm'
+                    : 'border-salon-sand/60 bg-white text-salon-charcoal hover:border-salon-charcoal'
+                }`}
+              >
+                <div>
+                  <span className="text-xs font-bold tracking-salon block mb-1 uppercase">
+                    {m.title}
+                  </span>
+                  <p className={`text-[11px] leading-relaxed ${selected ? 'text-salon-cream/80' : 'text-salon-taupe'}`}>
+                    {m.desc}
+                  </p>
+                </div>
+                <div className="mt-4 flex items-center gap-1.5">
+                  <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${selected ? 'border-salon-cream bg-salon-cream' : 'border-salon-sand'}`}>
+                    {selected && <div className="w-1.5 h-1.5 rounded-full bg-salon-charcoal" />}
+                  </div>
+                  <span className="text-[10px] uppercase tracking-wider font-semibold">
+                    {selected ? 'Terpilih' : 'Pilih'}
+                  </span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-salon-cream pb-24">
       {/* ─── HEADER ─── */}
@@ -144,6 +217,7 @@ export default function AdminRulesPage() {
         {rules ? (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
+              {renderPaymentModeField()}
               {renderToggleField(
                 'Layanan Di Studio',
                 'Aktifkan atau matikan fitur reservasi langsung di studio untuk seluruh pelanggan.',

@@ -32,11 +32,12 @@ const createSchema = z.object({
     email: z.string().email(),
     phone: z.string().min(6),
   }),
-  artist_id: z.number().int(),
+  artist_id: z.number().int().optional(),
   scheduled_at: z.string().refine(val => !isNaN(Date.parse(val)), { message: 'Invalid datetime format' }),
   service_package: z.string().min(1),
   location_type: z.enum(['studio', 'home_service']),
   address: z.string().optional(),
+  payment_type: z.enum(['deposit', 'pay_after_service']).optional(),
 })
 
 router.post('/create', async (req, res) => {
@@ -45,11 +46,21 @@ router.post('/create', async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() })
     return
   }
-  const { client, artist_id, scheduled_at, service_package, location_type, address } = parsed.data
+  const { client, artist_id, scheduled_at, service_package, location_type, address, payment_type } = parsed.data
 
-  const artist = await prisma.artist.findUnique({ where: { id: artist_id } })
+  let targetArtistId = artist_id
+  if (!targetArtistId) {
+    const defaultArtist = await prisma.artist.findFirst({ where: { is_active: true } }) ?? await prisma.artist.findFirst()
+    if (!defaultArtist) {
+      res.status(400).json({ error: 'Belum ada artist yang tersedia' })
+      return
+    }
+    targetArtistId = defaultArtist.id
+  }
+
+  const artist = await prisma.artist.findUnique({ where: { id: targetArtistId } })
   if (!artist || !artist.is_active) {
-    res.status(404).json({ error: 'Artist tidak ditemukan' })
+    res.status(404).json({ error: 'Artist tidak ditemukan atau tidak aktif' })
     return
   }
 
@@ -68,7 +79,7 @@ router.post('/create', async (req, res) => {
   const end = new Date(start.getTime() + duration * 60 * 1000)
   const conflicting = await prisma.booking.findFirst({
     where: {
-      artist_id,
+      artist_id: targetArtistId,
       status: { in: ['pending_deposit', 'confirmed', 'checked_in'] },
       AND: [
         { scheduled_at: { lt: new Date(end.getTime() + bufferMin * 60000) } },
@@ -80,6 +91,18 @@ router.post('/create', async (req, res) => {
     res.status(409).json({ error: 'Slot bentrok dengan booking lain' })
     return
   }
+
+  // Determine effective payment type
+  let effectivePaymentType: 'deposit' | 'pay_after_service' = 'deposit'
+  if (rules?.payment_mode === 'pay_after_service') {
+    effectivePaymentType = 'pay_after_service'
+  } else if (rules?.payment_mode === 'flexible') {
+    effectivePaymentType = payment_type || 'deposit'
+  } else {
+    effectivePaymentType = 'deposit'
+  }
+
+  const initialStatus = effectivePaymentType === 'pay_after_service' ? 'confirmed' : 'pending_deposit'
 
   // Upsert client by email
   const clientRow = await prisma.client.upsert({
@@ -95,11 +118,14 @@ router.post('/create', async (req, res) => {
   const booking = await prisma.booking.create({
     data: {
       client_id: clientRow.id,
-      artist_id,
+      artist_id: targetArtistId,
       scheduled_at: start,
       service_package,
       location_type,
       address,
+      status: initialStatus,
+      payment_type: effectivePaymentType,
+      deposit_paid: effectivePaymentType === 'pay_after_service' ? 0 : null,
     },
     include: {
       artist: true,
@@ -107,10 +133,14 @@ router.post('/create', async (req, res) => {
     },
   })
 
+  const emailMsg = effectivePaymentType === 'pay_after_service'
+    ? `Booking ID #${booking.id}. Status: confirmed. Pembayaran penuh dilakukan langsung ke artist setelah selesai treatment.`
+    : `Booking ID #${booking.id}. Status: pending_deposit. Upload bukti deposit dalam 2 jam.`
+
   await sendEmail(
     client.email,
     'Konfirmasi Booking — Amar Klinik',
-    `Booking ID #${booking.id}. Status: pending_deposit. Upload bukti deposit dalam 2 jam.`,
+    emailMsg,
   ).catch(() => {})
 
   sendBookingCreatedWA({

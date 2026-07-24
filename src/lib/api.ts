@@ -57,11 +57,12 @@ export const api = {
   bookings: {
     create: (data: {
       client: { full_name: string; email: string; phone: string }
-      artist_id: number
+      artist_id?: number
       scheduled_at: string
       service_package: string
       location_type: 'studio' | 'home_service'
       address?: string
+      payment_type?: 'deposit' | 'pay_after_service'
     }) => request<Booking>('/booking/create', {
       method: 'POST',
       body: JSON.stringify(data),

@@ -34,6 +34,7 @@ export default function BookingPage() {
   const [dokuUrl, setDokuUrl] = useState('')
   const [dokuModalOpen, setDokuModalOpen] = useState(false)
   const [bookingId, setBookingId] = useState<number | null>(null)
+  const [paymentType, setPaymentType] = useState<'deposit' | 'pay_after_service'>('deposit')
 
   async function handleDokuPaymentFromSuccess() {
     if (!bookingId) return
@@ -59,7 +60,12 @@ export default function BookingPage() {
   }
 
   useEffect(() => {
-    api.artists.list().then(setArtists).catch(() => {})
+    api.artists.list().then((list) => {
+      setArtists(list)
+      if (list.length > 0) {
+        setArtistId(list[0].id)
+      }
+    }).catch(() => {})
 
     api.admin.rules
       .get()
@@ -69,6 +75,11 @@ export default function BookingPage() {
           setLocationType('studio')
         } else if (r.allow_studio === false && r.allow_home_service !== false) {
           setLocationType('home_service')
+        }
+        if (r.payment_mode === 'pay_after_service') {
+          setPaymentType('pay_after_service')
+        } else {
+          setPaymentType('deposit')
         }
       })
       .catch(() => {})
@@ -121,16 +132,23 @@ export default function BookingPage() {
   const pkg = packages.find((p) => p.id === packageId) ?? { id: '', name: 'Loading...', duration_minutes: 0, price: 0 }
 
   async function handleConfirm() {
-    if (!artistId || !selectedSlot) return
+    if (!selectedSlot) return
     setCreating(true)
     try {
+      const effectivePayType = rules?.payment_mode === 'pay_after_service'
+        ? 'pay_after_service'
+        : rules?.payment_mode === 'flexible'
+          ? paymentType
+          : 'deposit'
+
       const booking = await api.bookings.create({
         client: { full_name: fullName, email, phone },
-        artist_id: artistId,
+        artist_id: artistId ?? undefined,
         scheduled_at: selectedSlot.start,
         service_package: pkg.name,
         location_type: locationType,
         address: locationType === 'home_service' ? address : undefined,
+        payment_type: effectivePayType,
       })
       setBookingId(booking.id)
       setStep('success')
@@ -151,12 +169,14 @@ export default function BookingPage() {
     setPhone('')
     setLocationType('home_service')
     setAddress('')
-    setArtistId(null)
+    if (artists.length > 0) setArtistId(artists[0].id)
     setSelectedSlot(null)
     setDate('')
     setSlots([])
     setBookingId(null)
   }
+
+  const isPayAfterServiceMode = rules?.payment_mode === 'pay_after_service' || (rules?.payment_mode === 'flexible' && paymentType === 'pay_after_service')
 
   if (step === 'success' && bookingId) {
     return (
@@ -178,31 +198,45 @@ export default function BookingPage() {
             />
           </div>
 
-          <div className="rounded-md bg-green-50 p-4 border border-green-200/60 text-left w-full mb-6 space-y-1">
-            <p className="text-xs font-semibold text-green-900 flex items-center gap-1.5">
-              <Check className="h-4 w-4 text-green-600 shrink-0" />
-              Notifikasi WA Otomatis Terkirim
-            </p>
-            <p className="text-[11px] text-green-700 leading-relaxed">
-              Rincian reservasi telah dikirimkan secara otomatis via WhatsApp ke nomor Anda, Artist, dan Management.
-            </p>
-          </div>
+          {isPayAfterServiceMode ? (
+            <div className="rounded-md bg-emerald-50 p-4 border border-emerald-200/80 text-left w-full mb-6 space-y-1.5">
+              <p className="text-xs font-semibold text-emerald-900 flex items-center gap-1.5">
+                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                Reservasi Terkonfirmasi (Bayar Selesai)
+              </p>
+              <p className="text-[11px] text-emerald-800 leading-relaxed">
+                Jadwal Anda telah dikonfirmasi tanpa deposit. Silakan lakukan pembayaran penuh secara tunai / QRIS / transfer langsung ke artist setelah treatment selesai.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-md bg-green-50 p-4 border border-green-200/60 text-left w-full mb-6 space-y-1">
+              <p className="text-xs font-semibold text-green-900 flex items-center gap-1.5">
+                <Check className="h-4 w-4 text-green-600 shrink-0" />
+                Notifikasi WA Otomatis Terkirim
+              </p>
+              <p className="text-[11px] text-green-700 leading-relaxed">
+                Rincian reservasi telah dikirimkan secara otomatis via WhatsApp ke nomor Anda, Artist, dan Management.
+              </p>
+            </div>
+          )}
 
           <div className="flex flex-col w-full gap-3">
-            <button
-              onClick={handleDokuPaymentFromSuccess}
-              disabled={dokuLoading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-4 px-4 text-xs tracking-salon transition-all duration-300 flex items-center justify-center gap-2 shadow-md hover:shadow-lg rounded-none"
-            >
-              <CreditCard className="h-4 w-4" />
-              {dokuLoading ? 'MEMPROSES DOKU…' : 'BAYAR DEPOSIT VIA VIRTUAL ACCOUNT (DOKU)'}
-            </button>
+            {!isPayAfterServiceMode && (
+              <button
+                onClick={handleDokuPaymentFromSuccess}
+                disabled={dokuLoading}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-4 px-4 text-xs tracking-salon transition-all duration-300 flex items-center justify-center gap-2 shadow-md hover:shadow-lg rounded-none"
+              >
+                <CreditCard className="h-4 w-4" />
+                {dokuLoading ? 'MEMPROSES DOKU…' : 'BAYAR DEPOSIT VIA VIRTUAL ACCOUNT (DOKU)'}
+              </button>
+            )}
 
             <button 
               onClick={() => navigate(`/booking/${bookingId}`)}
               className="w-full bg-salon-charcoal text-salon-cream hover:bg-salon-brown py-4 text-xs tracking-salon transition-colors"
             >
-              LIHAT DETAIL / UPLOAD DEPOSIT MANUAL
+              {isPayAfterServiceMode ? 'LIHAT DETAIL RESERVASI' : 'LIHAT DETAIL / UPLOAD DEPOSIT MANUAL'}
             </button>
 
             <button 
@@ -400,40 +434,42 @@ export default function BookingPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">ARTIST</label>
-                    <div className="relative">
-                      <select
-                        className="w-full border-0 border-b border-salon-sand bg-transparent px-0 py-2 text-salon-charcoal focus:ring-0 focus:border-salon-charcoal transition-colors appearance-none text-sm"
-                        value={artistId ?? ''}
-                        onChange={(e) => setArtistId(Number(e.target.value) || null)}
-                      >
-                        <option value="">Pilih Artist...</option>
-                        {artists
-                          .filter((a) => {
-                            if (locationType === 'studio') return a.allows_studio !== false
-                            if (locationType === 'home_service') return a.allows_home_service !== false
-                            return true
-                          })
-                          .map((a) => (
-                            <option key={a.id} value={a.id}>{a.name}</option>
-                          ))}
-                      </select>
+                <div className={`grid grid-cols-1 ${artists.length > 1 ? 'md:grid-cols-2' : ''} gap-6`}>
+                  {artists.length > 1 && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">ARTIST</label>
+                      <div className="relative">
+                        <select
+                          className="w-full border-0 border-b border-salon-sand bg-transparent px-0 py-2 text-salon-charcoal focus:ring-0 focus:border-salon-charcoal transition-colors appearance-none text-sm"
+                          value={artistId ?? ''}
+                          onChange={(e) => setArtistId(Number(e.target.value) || null)}
+                        >
+                          <option value="">Pilih Artist...</option>
+                          {artists
+                            .filter((a) => {
+                              if (locationType === 'studio') return a.allows_studio !== false
+                              if (locationType === 'home_service') return a.allows_home_service !== false
+                              return true
+                            })
+                            .map((a) => (
+                              <option key={a.id} value={a.id}>{a.name}</option>
+                            ))}
+                        </select>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   
                   <div className="space-y-2">
-                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">PAKET</label>
+                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">PAKET TREATMENT</label>
                     <div className="relative">
                       <select
-                        className="w-full border-0 border-b border-salon-sand bg-transparent px-0 py-2 text-salon-charcoal focus:ring-0 focus:border-salon-charcoal transition-colors appearance-none text-sm"
+                        className="w-full border-0 border-b border-salon-sand bg-transparent px-0 py-2 text-salon-charcoal focus:ring-0 focus:border-salon-charcoal transition-colors appearance-none text-sm font-medium"
                         value={packageId}
                         onChange={(e) => setPackageId(e.target.value)}
                       >
                         {packages.map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.name} · {p.duration_minutes}m
+                            {p.name} · {p.duration_minutes} mnt · Rp{p.price.toLocaleString('id-ID')}
                           </option>
                         ))}
                       </select>
@@ -442,7 +478,7 @@ export default function BookingPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">TANGGAL</label>
+                  <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">TANGGAL TREATMENT</label>
                   <input
                     type="date"
                     min={today}
@@ -452,12 +488,54 @@ export default function BookingPage() {
                   />
                 </div>
 
+                {rules?.payment_mode === 'flexible' && (
+                  <div className="space-y-3 pt-2">
+                    <label className="text-[10px] font-semibold tracking-salon text-salon-charcoal uppercase">PILIH SISTEM PEMBAYARAN</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentType('deposit')}
+                        className={`p-4 border text-left flex items-start gap-3 transition-all ${
+                          paymentType === 'deposit'
+                            ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream shadow-sm'
+                            : 'border-salon-sand bg-white text-salon-charcoal hover:border-salon-charcoal'
+                        }`}
+                      >
+                        <CreditCard className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider mb-0.5">Bayar DP Dulu ({rules?.deposit_percentage ?? 50}%)</p>
+                          <p className={`text-[11px] leading-snug ${paymentType === 'deposit' ? 'text-salon-cream/80' : 'text-salon-taupe'}`}>
+                            Bayar DP online untuk mengonfirmasi jadwal.
+                          </p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentType('pay_after_service')}
+                        className={`p-4 border text-left flex items-start gap-3 transition-all ${
+                          paymentType === 'pay_after_service'
+                            ? 'border-salon-charcoal bg-salon-charcoal text-salon-cream shadow-sm'
+                            : 'border-salon-sand bg-white text-salon-charcoal hover:border-salon-charcoal'
+                        }`}
+                      >
+                        <CreditCard className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider mb-0.5">Bayar Selesai (Ke Artist)</p>
+                          <p className={`text-[11px] leading-snug ${paymentType === 'pay_after_service' ? 'text-salon-cream/80' : 'text-salon-taupe'}`}>
+                            Bayar tunai / QRIS langsung setelah selesai treatment.
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Slot grid */}
                 <div className="pt-2">
                   <label className="text-[10px] font-bold tracking-salon text-salon-charcoal uppercase block mb-4">WAKTU TERSEDIA</label>
                   {!artistId || !date ? (
                     <div className="py-8 text-center border border-dashed border-salon-sand text-salon-taupe text-xs">
-                      Pilih artist & tanggal untuk melihat slot.
+                      Pilih tanggal untuk melihat slot waktu tersedia.
                     </div>
                   ) : loadingSlots ? (
                     <div className="py-8 text-center border border-dashed border-salon-sand text-salon-taupe text-xs">
@@ -506,7 +584,7 @@ export default function BookingPage() {
                   <button
                     disabled={!selectedSlot}
                     onClick={() => setStep('confirm')}
-                    className="flex-[2] bg-salon-charcoal text-salon-cream hover:bg-salon-brown py-4 text-xs tracking-salon transition-colors disabled:opacity-50"
+                    className="flex-[2] bg-salon-charcoal text-salon-cream hover:bg-salon-brown py-4 text-xs tracking-salon transition-colors disabled:opacity-50 font-semibold"
                   >
                     LANJUT KONFIRMASI
                   </button>
@@ -543,16 +621,27 @@ export default function BookingPage() {
                     return `${String(d.getHours()).padStart(2, '0')}.${String(d.getMinutes()).padStart(2, '0')}`
                   })()} 
                 />
-                <Row label="ARTIST" value={artists.find((a) => a.id === artistId)?.name ?? '-'} />
+                {artists.length > 1 && (
+                  <Row label="ARTIST" value={artists.find((a) => a.id === artistId)?.name ?? '-'} />
+                )}
                 
                 <hr className="border-salon-sand/30" />
                 
                 <Row label="PAKET" value={`${pkg.name}`} />
                 <Row label="TOTAL HARGA" value={`Rp${pkg.price.toLocaleString('id-ID')}`} />
+                <Row 
+                  label="SISTEM PEMBAYARAN" 
+                  value={isPayAfterServiceMode ? 'Bayar Langsung Ke Artist (Setelah Selesai)' : `Deposit / DP Online (${rules?.deposit_percentage ?? 50}%)`} 
+                />
+                
                 <div className="flex justify-between items-end pt-4 border-t border-salon-charcoal">
-                  <span className="text-[10px] tracking-salon text-salon-charcoal font-semibold">DEPOSIT DIBAYAR (50%)</span>
+                  <span className="text-[10px] tracking-salon text-salon-charcoal font-semibold uppercase">
+                    {isPayAfterServiceMode ? 'PEMBAYARAN SETELAH TREATMENT' : `DEPOSIT DIBAYAR (${rules?.deposit_percentage ?? 50}%)`}
+                  </span>
                   <span className="font-serif text-xl md:text-2xl text-salon-charcoal">
-                    Rp{Math.round(pkg.price * 0.5).toLocaleString('id-ID')}
+                    {isPayAfterServiceMode
+                      ? `Rp${pkg.price.toLocaleString('id-ID')} (Lunas Saat Selesai)`
+                      : `Rp${Math.round((pkg.price * (rules?.deposit_percentage ?? 50)) / 100).toLocaleString('id-ID')}`}
                   </span>
                 </div>
               </div>
@@ -567,7 +656,7 @@ export default function BookingPage() {
                 <button
                   disabled={creating}
                   onClick={handleConfirm}
-                  className="w-2/3 bg-salon-charcoal text-salon-cream hover:bg-salon-brown py-4 text-xs tracking-salon transition-colors disabled:opacity-50"
+                  className="w-2/3 bg-salon-charcoal text-salon-cream hover:bg-salon-brown py-4 text-xs tracking-salon transition-colors disabled:opacity-50 font-semibold"
                 >
                   {creating ? 'MEMPROSES...' : 'KONFIRMASI BOOKING'}
                 </button>
